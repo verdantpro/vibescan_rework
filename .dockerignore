@@ -1,0 +1,9 @@
+**/node_modules
+**/.git
+**/*.log
+# Legacy Python app is not part of the Go image build context (also huge: mmdb).
+vibescan_v2
+.air
+# UI dist is rebuilt inside the image.
+vibescan-ui/dist
+vibescan-go/cache

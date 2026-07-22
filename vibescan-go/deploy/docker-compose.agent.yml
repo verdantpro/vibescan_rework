@@ -1,0 +1,27 @@
+# VibeScan Go scanner — run this on the scanner host.
+# It builds the agent image (nmap + Chromium) and runs the scan→capture→submit
+# loop against your collector. Fill agent.env first.
+#
+#   cd vibescan-go/deploy
+#   cp agent.env.example agent.env      # set server URL + shared key
+#   docker compose -f docker-compose.agent.yml up -d --build
+#   docker compose -f docker-compose.agent.yml logs -f
+
+services:
+  agent:
+    build:
+      context: ..                       # vibescan-go/
+      dockerfile: Dockerfile.agent
+    env_file: agent.env
+    # nmap host discovery / SYN scans want raw sockets. NET_RAW is usually
+    # enough; if nmap complains, switch to `privileged: true`.
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    shm_size: "1gb"                      # headroom for headless Chromium
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

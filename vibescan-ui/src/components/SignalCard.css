@@ -1,0 +1,48 @@
+.card {
+  display: block;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.card:hover {
+  border-color: var(--cyan-dim);
+  box-shadow: 0 0 26px -12px rgba(56, 225, 255, 0.6);
+  transform: translateY(-2px);
+}
+.card:hover .card-scan { opacity: 1; }
+.card:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+.card-shot {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: var(--void-2);
+  overflow: hidden;
+}
+.card-shot img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.card-noshot {
+  display: grid; place-items: center; height: 100%;
+  color: var(--muted-2); font-size: 12px; letter-spacing: 0.2em;
+}
+.card-scan {
+  position: absolute; inset: 0; opacity: 0; transition: opacity 0.2s;
+  background: linear-gradient(rgba(56, 225, 255, 0) 0, rgba(56, 225, 255, 0.06) 50%, rgba(56, 225, 255, 0) 100%);
+  background-size: 100% 6px;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+.card-callsign {
+  position: absolute; left: 8px; bottom: 8px;
+  font-size: 11px; padding: 2px 7px;
+  color: var(--cyan);
+  background: rgba(5, 7, 13, 0.72);
+  border: 1px solid rgba(56, 225, 255, 0.3);
+  border-radius: 3px;
+  backdrop-filter: blur(2px);
+}
+.card-meta { padding: 10px 12px 12px; display: grid; gap: 6px; }
+.card-product { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%; }
+.card-sub { font-size: 11px; }
+.card-sub .dim { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-sub .dim:first-child { max-width: 70%; }

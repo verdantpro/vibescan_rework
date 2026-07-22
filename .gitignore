@@ -1,0 +1,44 @@
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local tooling / agent scratch
+.air/
+.claude/
+.grok/
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+!**/.env.example
+agent.env
+**/agent.env
+
+# GeoIP databases (large binary; ship separately or scp with deploy/)
+*.mmdb
+
+# Go
+vibescan-go/cache/
+vibescan-go/collector
+*.exe
+*.test
+*.out
+coverage.out
+
+# Node / Vite
+vibescan-ui/node_modules/
+vibescan-ui/dist/
+npm-debug.log*
+yarn-error.log*
+
+# Logs
+*.log
+
+# Legacy Python stack has its own Git remote — keep it out of this monorepo.
+# Clone vibescan_v2 separately if you need dual-run / reference.
+vibescan_v2/

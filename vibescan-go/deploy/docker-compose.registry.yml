@@ -1,0 +1,50 @@
+# Registry variant: the app image is BUILT elsewhere (your laptop / CI) and
+# PUSHED to a container registry (Amazon ECR), then this box only PULLS it. Ideal
+# for a small host (e.g. an EC2 t3.micro / 1 GB) that can't compile the image.
+#
+# On the server you only need this deploy/ folder (compose, Caddyfile, .env,
+# and optionally GeoLite2-City.mmdb) — not the source tree.
+#
+#   docker compose -f docker-compose.registry.yml pull
+#   docker compose -f docker-compose.registry.yml up -d
+#   docker compose -f docker-compose.registry.yml run --rm --entrypoint migrate app
+
+# Bounded container logs so a small disk never fills.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  app:
+    image: ${IMAGE}                   # pinned tag, e.g. …/vibescan:20260722-120000
+    env_file: .env
+    environment:
+      - PORT=8000
+      - GEOLITE2_CITY_MMDB=/app/GeoLite2-City.mmdb
+    volumes:
+      - ./GeoLite2-City.mmdb:/app/GeoLite2-City.mmdb:ro
+    expose:
+      - "8000"
+    restart: unless-stopped
+    logging: *logging
+
+  caddy:
+    image: caddy:2-alpine
+    env_file: .env                    # provides DOMAIN
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  caddy_data:
+  caddy_config:

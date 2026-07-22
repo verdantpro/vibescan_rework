@@ -1,0 +1,8 @@
+.ts svg { width: 100%; height: auto; display: block; }
+.ts-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
+.ts-axis { fill: var(--muted-2); font-family: var(--font-mono); font-size: 9px; }
+.ts-line { fill: none; stroke: var(--cyan); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.ts-cross { stroke: var(--cyan-dim); stroke-width: 1; stroke-dasharray: 2 3; }
+.ts-dot { fill: var(--cyan); stroke: var(--void); stroke-width: 1.5; }
+.ts-foot { margin-top: 8px; font-size: 11px; min-height: 16px; }
+.ts-tip b { color: var(--cyan); }

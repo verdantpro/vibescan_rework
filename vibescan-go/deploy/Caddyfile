@@ -1,0 +1,9 @@
+# Caddy fronts the Go app and handles TLS automatically for {$DOMAIN}.
+# Set DOMAIN in .env to your real hostname for auto-HTTPS (DNS must point here,
+# ports 80/443 open). Use DOMAIN=:80 for a local, HTTP-only test.
+
+{$DOMAIN} {
+	encode zstd gzip
+	log                      # access logs to stdout (bounded by Docker log rotation)
+	reverse_proxy app:8000
+}

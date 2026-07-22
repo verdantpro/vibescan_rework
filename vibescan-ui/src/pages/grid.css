@@ -1,0 +1,18 @@
+.page { padding: 30px 24px 64px; }
+.page-head { margin-bottom: 22px; }
+.page-title { font-size: clamp(24px, 3.4vw, 36px); color: var(--ink); margin: 8px 0 4px; }
+.page-sub { color: var(--muted); font-size: 13px; }
+
+.signal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 16px;
+}
+.page-more { display: flex; justify-content: center; margin-top: 28px; }
+.empty {
+  text-align: center;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  padding: 70px 0;
+  letter-spacing: 0.08em;
+}
