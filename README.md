@@ -10,5 +10,9 @@ Replaces the Python stack incrementally while sharing Mongo / object storage.
 
 **Deploy runbook:** [`vibescan-go/deploy/DEPLOY.md`](vibescan-go/deploy/DEPLOY.md)
 
+**CI/CD:** push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
+(build → ECR → SSH roll EC2). One-time secrets setup is documented in the runbook
+under **CI/CD**.
+
 The legacy Python app (`vibescan_v2`) is **not** part of this repo — it remains a
 separate Git remote for dual-run / reference.

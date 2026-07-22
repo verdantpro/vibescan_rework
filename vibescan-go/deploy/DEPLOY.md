@@ -405,6 +405,81 @@ docker compose -f docker-compose.agent.yml up -d --build
 
 ---
 
+## CI/CD — deploy on every push to `main`
+
+The workflow [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) does
+what you used to do by hand:
+
+1. Build `linux/amd64` from the monorepo root (`vibescan-go/Dockerfile`)
+2. Push an immutable tag to **ECR**
+3. **SSH** to the EC2 host → set `IMAGE=` in `~/deploy/.env` → `pull` + `up -d` → `migrate` → healthcheck
+
+### One-time: GitHub secrets
+
+Repo → **Settings → Secrets and variables → Actions → New repository secret**:
+
+| Secret | Value |
+|--------|--------|
+| `AWS_ACCOUNT_ID` | 12-digit account id |
+| `AWS_ACCESS_KEY_ID` | IAM user access key (see policy below) |
+| `AWS_SECRET_ACCESS_KEY` | matching secret |
+| `EC2_HOST` | `vibescan.verdantprotocol.com` (or the Elastic IP) |
+| `EC2_USER` | `ubuntu` |
+| `EC2_SSH_KEY` | **full contents** of the private key PEM used for SSH (`-----BEGIN … KEY-----` …) |
+
+**IAM user for CI** (minimal): allow ECR push to the `vibescan` repo only, e.g.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["ecr:GetAuthorizationToken"],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:InitiateLayerUpload",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:DescribeRepositories"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:ACCOUNT_ID:repository/vibescan"
+    }
+  ]
+}
+```
+
+### One-time: EC2 must allow GitHub to SSH
+
+- Security group: inbound **22** from the internet is broad; better to allow GitHub
+  Actions IP ranges or (preferred later) switch to **SSM Session Manager**.
+- The key in `EC2_SSH_KEY` must match an authorized key for `ubuntu` on the box
+  (same key you already use: e.g. `vibescan.pem`).
+- `~/deploy` must already exist with a filled `.env` (Mongo, S3, shared key, domain)
+  and optional `GeoLite2-City.mmdb`. CI only updates `IMAGE=` and restarts compose.
+
+### Trigger
+
+- **Automatic:** push to `main` that touches `vibescan-go/**`, `vibescan-ui/**`, or the workflow file.
+- **Manual:** GitHub → **Actions → Deploy → Run workflow**.
+
+Watch the run under the **Actions** tab; the job summary prints the image tag.
+
+### Rollback
+
+Same as before: set `IMAGE=` on the host to a prior ECR tag and
+`docker compose -f docker-compose.registry.yml pull && … up -d`, or re-run an
+older workflow is not automatic — keep tags in ECR.
+
+---
+
 ## Ops
 
 **Monitoring (the 1 GB box is fragile).** CloudWatch has CPU by default; install the **CloudWatch agent** for memory, then add an **alarm** on CPU/memory (SNS email). Add an external uptime check (e.g. UptimeRobot) on `https://YOUR_DOMAIN/api/healthz`.
@@ -420,7 +495,7 @@ mongodump --uri="$MONGO_URI" --archive --gzip \
 
 `results` is largely re-scannable, but **votes/tags/users** (once added) are not — treat backups as mandatory before the interactions phase ships.
 
-**Update / rollback (app).**
+**Update / rollback (app).** Prefer **push to `main`** (CI/CD above). Manual path still works:
 
 1. Laptop: `cd vibescan-go/deploy && REGION=us-east-1 ACCOUNT_ID=… ./build-push.sh` → note the new pinned tag.
 2. Host: set `IMAGE=` in `~/deploy/.env` to that tag, then:
