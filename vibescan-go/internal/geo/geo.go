@@ -121,6 +121,11 @@ func NewResolver(path string) *Resolver {
 	return r
 }
 
+// Available reports whether a MaxMind City database is loaded.
+func (r *Resolver) Available() bool {
+	return r != nil && r.reader != nil
+}
+
 // Lookup returns the geolocation for ip, or (GeoIP{}, false) when the address
 // is private/reserved, the database is unavailable, or no location is known.
 func (r *Resolver) Lookup(ipStr string) (GeoIP, bool) {

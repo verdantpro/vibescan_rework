@@ -11,6 +11,7 @@ import (
 
 	"github.com/vibescan/vibescan-go/internal/collector"
 	"github.com/vibescan/vibescan-go/internal/config"
+	"github.com/vibescan/vibescan-go/internal/geo"
 	"github.com/vibescan/vibescan-go/internal/store"
 	"github.com/vibescan/vibescan-go/internal/transport"
 	"github.com/vibescan/vibescan-go/internal/web"
@@ -25,11 +26,12 @@ type Server struct {
 	ingestor  *collector.Ingestor
 	blacklist *collector.BlacklistCache
 	store     *store.Mongo
+	geo       *geo.Resolver // optional; enriches tiles when Mongo docs lack geoip
 }
 
-// NewServer builds the collector HTTP server.
-func NewServer(cfg *config.Config, ing *collector.Ingestor, bl *collector.BlacklistCache, st *store.Mongo) *Server {
-	return &Server{cfg: cfg, ingestor: ing, blacklist: bl, store: st}
+// NewServer builds the collector HTTP server. geo may be nil (lookups no-op).
+func NewServer(cfg *config.Config, ing *collector.Ingestor, bl *collector.BlacklistCache, st *store.Mongo, geoResolver *geo.Resolver) *Server {
+	return &Server{cfg: cfg, ingestor: ing, blacklist: bl, store: st, geo: geoResolver}
 }
 
 // Handler returns the configured http.Handler (Go 1.22+ method-pattern mux).

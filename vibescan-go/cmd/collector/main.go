@@ -52,6 +52,11 @@ func main() {
 	}
 
 	geoResolver := geo.NewResolver(cfg.GeoIPPath)
+	if !geoResolver.Available() {
+		log.Printf("[collector] GeoIP disabled (no MMDB at %s) — world map will have no points", cfg.GeoIPPath)
+	} else {
+		log.Printf("[collector] GeoIP enabled (%s)", cfg.GeoIPPath)
+	}
 
 	buffer, err := store.NewBuffer(cfg.BufferDir, mongoStore, 15*time.Second, cfg.Debug)
 	if err != nil {
@@ -61,7 +66,7 @@ func main() {
 
 	ingestor := collector.NewIngestor(cfg, mongoStore, r2, geoResolver, buffer)
 	blacklist := collector.NewBlacklistCache(mongoStore)
-	srv := httpapi.NewServer(cfg, ingestor, blacklist, mongoStore)
+	srv := httpapi.NewServer(cfg, ingestor, blacklist, mongoStore, geoResolver)
 
 	httpServer := &http.Server{
 		Addr:              cfg.Addr,

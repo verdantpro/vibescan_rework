@@ -171,15 +171,30 @@ func (m *Mongo) ServiceDetail(ctx context.Context, ipInt int64, port int) (*Serv
 	return &doc, nil
 }
 
-// RandomLanding samples one random landing-page capture, mirroring the query in
-// random_capture.py but using $sample instead of a Redis pool.
+// RandomLanding samples one random capture for the live viewport.
+// Preference order (same idea as the Python landing pool, with a practical fallback):
+//  1. Classic "landing page": insecure HTTP 200 with landing_image set
+//  2. Any service that has a real screenshot (HTTPS hits, non-200 pages, early deploys)
 func (m *Mongo) RandomLanding(ctx context.Context) (*ServiceDoc, error) {
+	prefer := bson.D{
+		{Key: "landing_image.secured", Value: false},
+		{Key: "landing_image.http_status", Value: 200},
+		{Key: "landing_image.capture_hash", Value: bson.D{{Key: "$type", Value: "string"}, {Key: "$ne", Value: ""}}},
+	}
+	doc, err := m.sampleOne(ctx, prefer)
+	if err != nil || doc != nil {
+		return doc, err
+	}
+	// Fallback: any row with a non-empty capture_hash (uploaded or base64 capture).
+	return m.sampleOne(ctx, bson.D{
+		{Key: "capture_hash", Value: bson.D{{Key: "$type", Value: "string"}, {Key: "$ne", Value: ""}}},
+		{Key: "capture", Value: bson.D{{Key: "$type", Value: "string"}, {Key: "$ne", Value: ""}}},
+	})
+}
+
+func (m *Mongo) sampleOne(ctx context.Context, match bson.D) (*ServiceDoc, error) {
 	pipeline := mongo.Pipeline{
-		bson.D{{Key: "$match", Value: bson.D{
-			{Key: "landing_image.secured", Value: false},
-			{Key: "landing_image.http_status", Value: 200},
-			{Key: "landing_image.capture_hash", Value: bson.D{{Key: "$type", Value: "string"}, {Key: "$ne", Value: ""}}},
-		}}},
+		bson.D{{Key: "$match", Value: match}},
 		bson.D{{Key: "$sample", Value: bson.D{{Key: "size", Value: 1}}}},
 		bson.D{{Key: "$project", Value: bson.D{{Key: "fulltext", Value: 0}}}},
 	}

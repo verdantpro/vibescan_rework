@@ -73,8 +73,24 @@ func (s *Server) toTile(d store.ServiceDoc) tile {
 		DomHash:         d.DomHash,
 		CertCN:          d.CertCN,
 		UpdatedAt:       ts.UTC().Format(time.RFC3339),
-		Geo:             d.GeoIP,
+		Geo:             s.resolveGeo(d),
 	}
+}
+
+// resolveGeo prefers the stored geoip subdoc; if missing (e.g. mmdb was absent
+// at ingest), looks up again so the world map works after GeoIP is mounted.
+func (s *Server) resolveGeo(d store.ServiceDoc) *geo.GeoIP {
+	if d.GeoIP != nil {
+		return d.GeoIP
+	}
+	if s.geo == nil || d.IPStr == "" {
+		return nil
+	}
+	if g, ok := s.geo.Lookup(d.IPStr); ok {
+		cp := g
+		return &cp
+	}
+	return nil
 }
 
 func (s *Server) toTiles(docs []store.ServiceDoc) []tile {
@@ -188,6 +204,8 @@ func (s *Server) handleRandomCapture(w http.ResponseWriter, r *http.Request) {
 	product := "Unknown"
 	if doc.LandingImage != nil && doc.LandingImage.Product != "" {
 		product = doc.LandingImage.Product
+	} else if p := media.ExtractProduct(doc.Banner); p != "" {
+		product = p
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"image_url":    s.resolveImageURL(*doc),

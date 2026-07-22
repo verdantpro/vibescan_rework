@@ -17,8 +17,22 @@ export default function Console() {
   const acquire = useCallback(async () => {
     setLoading(true);
     try {
-      const cap = await api.randomCapture();
-      const d = await api.signal(cap.ip, cap.port);
+      // Prefer the random-capture pool; if empty/unavailable, fall back to the
+      // latest gallery tile so the viewport is never stuck on a dead API.
+      let ip: string;
+      let port: number;
+      try {
+        const cap = await api.randomCapture();
+        ip = cap.ip;
+        port = cap.port;
+      } catch {
+        const gal = await api.gallery(12);
+        const pick = gal.entries[Math.floor(Math.random() * gal.entries.length)];
+        if (!pick) throw new Error("no captures");
+        ip = pick.ip;
+        port = pick.port;
+      }
+      const d = await api.signal(ip, port);
       setDetail(d);
     } catch {
       // No captures yet, or one vanished — leave prior signal on screen.
