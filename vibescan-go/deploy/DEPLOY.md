@@ -405,40 +405,104 @@ docker compose -f docker-compose.agent.yml up -d --build
 
 ---
 
-## CI/CD — deploy on every push to `main`
+## CI/CD — deploy on every push to `main` (via **AWS SSM**, no inbound SSH)
 
-The workflow [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) does
-what you used to do by hand:
+The workflow [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml):
 
-1. Build `linux/amd64` from the monorepo root (`vibescan-go/Dockerfile`)
-2. Push an immutable tag to **ECR**
-3. **SSH** to the EC2 host → set `IMAGE=` in `~/deploy/.env` → `pull` + `up -d` → `migrate` → healthcheck
+1. Builds `linux/amd64` → pushes an immutable tag to **ECR**
+2. Runs **`aws ssm send-command`** on the EC2 instance (agent phones home over HTTPS)
+3. On the host: pin `IMAGE=` in `~/deploy/.env` → `pull` + `up -d` → `migrate` → healthcheck
 
-### One-time: GitHub secrets
+GitHub never needs port 22. Keep SSH locked to your home IP (or close 22 entirely once SSM works).
 
-Repo → **Settings → Secrets and variables → Actions → New repository secret**:
+### A. One-time: enable SSM on the EC2 instance
+
+**1. Instance role** (you likely already have `vibescan-ec2` for ECR pull). Attach the managed policy:
+
+```bash
+aws iam attach-role-policy \
+  --role-name vibescan-ec2 \
+  --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+```
+
+If the instance profile is different, attach the same policy to **that** role. The role must already be on the instance (you set `--iam-instance-profile Name=vibescan-ec2` at launch).
+
+**2. SSM Agent** (Ubuntu 24.04 often needs install):
+
+```bash
+# SSH in once from your allowed IP (or use EC2 Instance Connect if available)
+ssh -i ~/.ssh/vibescan.pem ubuntu@YOUR_EIP
+
+# Install + start (snap package on Ubuntu)
+sudo snap install amazon-ssm-agent --classic
+sudo systemctl enable --now snap.amazon-ssm-agent.amazon-ssm-agent.service
+# some images use:  sudo systemctl enable --now amazon-ssm-agent
+
+# Confirm the process is up
+systemctl status snap.amazon-ssm-agent.amazon-ssm-agent --no-pager || \
+  systemctl status amazon-ssm-agent --no-pager
+```
+
+The instance needs **outbound HTTPS (443)** to AWS (default SG egress is fine). No new inbound rules.
+
+**3. Verify the instance is “Online” in SSM** (from your laptop):
+
+```bash
+# Find instance id
+aws ec2 describe-instances \
+  --filters "Name=tag:Name,Values=vibescan-web" "Name=instance-state-name,Values=running" \
+  --query 'Reservations[].Instances[].InstanceId' --output text
+# → i-0abc…
+
+aws ssm describe-instance-information \
+  --filters "Key=InstanceIds,Values=i-0abc…" \
+  --query 'InstanceInformationList[0].{Id:InstanceId,Ping:PingStatus,Agent:AgentVersion}' \
+  --output table
+```
+
+You want **`PingStatus = Online`**. If the list is empty: wait 1–2 minutes, recheck role + agent, reboot once if needed.
+
+**4. Smoke-test a remote command** (no SSH):
+
+```bash
+aws ssm send-command \
+  --instance-ids i-0abc… \
+  --document-name "AWS-RunShellScript" \
+  --parameters 'commands=["whoami","docker ps --format {{.Names}}"]' \
+  --query 'Command.CommandId' --output text
+# then:
+aws ssm get-command-invocation --command-id COMMAND_ID --instance-id i-0abc…
+```
+
+**5. Optional — keep SSH locked.** Your current rule (`YOUR_IP/32` on 22) is fine; you do **not** need `0.0.0.0/0` for CI.
+
+### B. One-time: GitHub secrets
+
+Repo → **Settings → Secrets and variables → Actions**:
 
 | Secret | Value |
 |--------|--------|
 | `AWS_ACCOUNT_ID` | 12-digit account id |
-| `AWS_ACCESS_KEY_ID` | IAM user access key (see policy below) |
+| `AWS_ACCESS_KEY_ID` | CI IAM user access key |
 | `AWS_SECRET_ACCESS_KEY` | matching secret |
-| `EC2_HOST` | `vibescan.verdantprotocol.com` (or the Elastic IP) |
-| `EC2_USER` | `ubuntu` |
-| `EC2_SSH_KEY` | **full contents** of the private key PEM used for SSH (`-----BEGIN … KEY-----` …) |
+| `EC2_INSTANCE_ID` | `i-0abc…` (from step A.3) |
 
-**IAM user for CI** (minimal): allow ECR push to the `vibescan` repo only, e.g.
+You do **not** need `EC2_HOST` / `EC2_USER` / `EC2_SSH_KEY` for this workflow.
+
+**CI IAM user policy** (ECR push + SSM Run Command). Replace `ACCOUNT_ID` and `INSTANCE_ID`:
 
 ```json
 {
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "EcrAuth",
       "Effect": "Allow",
       "Action": ["ecr:GetAuthorizationToken"],
       "Resource": "*"
     },
     {
+      "Sid": "EcrPush",
       "Effect": "Allow",
       "Action": [
         "ecr:BatchCheckLayerAvailability",
@@ -451,32 +515,42 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
         "ecr:DescribeRepositories"
       ],
       "Resource": "arn:aws:ecr:us-east-1:ACCOUNT_ID:repository/vibescan"
+    },
+    {
+      "Sid": "SsmSend",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:SendCommand",
+        "ssm:GetCommandInvocation",
+        "ssm:ListCommands",
+        "ssm:ListCommandInvocations"
+      ],
+      "Resource": [
+        "arn:aws:ec2:us-east-1:ACCOUNT_ID:instance/INSTANCE_ID",
+        "arn:aws:ssm:us-east-1::document/AWS-RunShellScript",
+        "arn:aws:ssm:us-east-1:ACCOUNT_ID:*"
+      ]
     }
   ]
 }
 ```
 
-### One-time: EC2 must allow GitHub to SSH
+Host still needs `~/deploy` with a filled `.env` + compose files + optional `GeoLite2-City.mmdb`. CI only rewrites `IMAGE=` and restarts containers.
 
-- Security group: inbound **22** from the internet is broad; better to allow GitHub
-  Actions IP ranges or (preferred later) switch to **SSM Session Manager**.
-- The key in `EC2_SSH_KEY` must match an authorized key for `ubuntu` on the box
-  (same key you already use: e.g. `vibescan.pem`).
-- `~/deploy` must already exist with a filled `.env` (Mongo, S3, shared key, domain)
-  and optional `GeoLite2-City.mmdb`. CI only updates `IMAGE=` and restarts compose.
-
-### Trigger
+### C. Trigger
 
 - **Automatic:** push to `main` that touches `vibescan-go/**`, `vibescan-ui/**`, or the workflow file.
 - **Manual:** GitHub → **Actions → Deploy → Run workflow**.
 
-Watch the run under the **Actions** tab; the job summary prints the image tag.
+### D. Rollback
 
-### Rollback
+Set `IMAGE=` on the host to a prior ECR tag (via one-off SSM command or SSH from home) and:
 
-Same as before: set `IMAGE=` on the host to a prior ECR tag and
-`docker compose -f docker-compose.registry.yml pull && … up -d`, or re-run an
-older workflow is not automatic — keep tags in ECR.
+```bash
+cd ~/deploy
+docker compose -f docker-compose.registry.yml pull
+docker compose -f docker-compose.registry.yml up -d
+```
 
 ---
 
