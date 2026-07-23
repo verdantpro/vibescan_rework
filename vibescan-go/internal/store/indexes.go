@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -45,43 +44,103 @@ func (m *Mongo) EnsureIndexes(ctx context.Context) error {
 	if _, err := m.results.Indexes().CreateMany(ctx, models); err != nil {
 		return err
 	}
-
-	// Free-text search index, created on its own so a pre-existing text index
-	// with different fields (e.g. from the legacy Python app) can't block the
-	// core indexes above. MongoDB permits only one text index per collection.
-	textIdx := mongo.IndexModel{
-		Keys: bson.D{
-			{Key: "banner", Value: "text"},
-			{Key: "whois", Value: "text"},
-			{Key: "cert_cn", Value: "text"},
-			{Key: "fulltext", Value: "text"},
-		},
-		Options: options.Index().
-			SetName("idx_text_search").
-			SetWeights(bson.D{
-				{Key: "banner", Value: 10},
-				{Key: "cert_cn", Value: 8},
-				{Key: "whois", Value: 5},
-				{Key: "fulltext", Value: 1},
-			}),
-	}
-	if _, err := m.results.Indexes().CreateOne(ctx, textIdx); err != nil && !isTextIndexConflict(err) {
-		return err
-	}
-	return nil
+	return m.ensureTextIndex(ctx)
 }
 
-// isTextIndexConflict reports whether err is MongoDB refusing a second/renamed
-// text index (code 85 IndexOptionsConflict / 86 IndexKeySpecsConflict, or the
-// "already exists with a different name" text). Such a collection already has a
-// usable text index, so search still works and startup should not fail.
-func isTextIndexConflict(err error) bool {
-	if err == nil {
+// textIndexWeights defines the single free-text search index the /api/v2/search
+// endpoint relies on. Weights bias matches toward short identifying fields
+// (product banner, cert CN, geo city/country) over bulk page text. Geo fields
+// live in the geoip subdocument, so a query like "shanghai" or "china" — which
+// comes from GeoIP, not the banner — matches here.
+var textIndexWeights = bson.D{
+	{Key: "banner", Value: 10},
+	{Key: "geoip.city", Value: 9},
+	{Key: "cert_cn", Value: 8},
+	{Key: "geoip.country", Value: 6},
+	{Key: "geoip.country_iso", Value: 6},
+	{Key: "geoip.region", Value: 5},
+	{Key: "whois", Value: 5},
+	{Key: "rdns", Value: 4},
+	{Key: "fulltext", Value: 1},
+}
+
+func textIndexModel() mongo.IndexModel {
+	keys := bson.D{}
+	for _, w := range textIndexWeights {
+		keys = append(keys, bson.E{Key: w.Key, Value: "text"})
+	}
+	return mongo.IndexModel{
+		Keys:    keys,
+		Options: options.Index().SetName("idx_text_search").SetWeights(textIndexWeights),
+	}
+}
+
+// ensureTextIndex creates (or updates) the collection's single text index.
+// MongoDB allows only one text index per collection and rejects a differing spec
+// under the same name, so when the field set/weights change (e.g. adding geo
+// fields) we drop the existing text index and recreate it — but only then, so a
+// normal startup never rebuilds it.
+func (m *Mongo) ensureTextIndex(ctx context.Context) error {
+	cur, err := m.results.Indexes().List(ctx)
+	if err != nil {
+		return err
+	}
+	var existing []bson.M
+	if err := cur.All(ctx, &existing); err != nil {
+		return err
+	}
+
+	desired := map[string]int{}
+	for _, w := range textIndexWeights {
+		desired[w.Key] = w.Value.(int)
+	}
+
+	for _, idx := range existing {
+		weights, ok := idx["weights"].(bson.M) // only a text index has "weights"
+		if !ok {
+			continue
+		}
+		if textWeightsEqual(weights, desired) {
+			return nil // already current — don't rebuild
+		}
+		// A text index exists but with a different field set/weights; drop it so
+		// we can recreate (only one text index is permitted per collection).
+		if name, _ := idx["name"].(string); name != "" {
+			if _, err := m.results.Indexes().DropOne(ctx, name); err != nil {
+				return err
+			}
+		}
+		break
+	}
+	_, err = m.results.Indexes().CreateOne(ctx, textIndexModel())
+	return err
+}
+
+func textWeightsEqual(got bson.M, want map[string]int) bool {
+	if len(got) != len(want) {
 		return false
 	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "text index") ||
-		strings.Contains(msg, "indexoptionsconflict") ||
-		strings.Contains(msg, "indexkeyspecsconflict") ||
-		strings.Contains(msg, "already exists")
+	for k, v := range want {
+		gv, ok := got[k]
+		if !ok || toInt(gv) != v {
+			return false
+		}
+	}
+	return true
+}
+
+// toInt normalizes the numeric types the driver may decode index weights into.
+func toInt(v any) int {
+	switch n := v.(type) {
+	case int32:
+		return int(n)
+	case int64:
+		return int(n)
+	case int:
+		return n
+	case float64:
+		return int(n)
+	default:
+		return -1
+	}
 }

@@ -87,10 +87,10 @@ export default function Search() {
         <input
           className="search-input mono"
           autoFocus
-          aria-label="Search the census by banner, product, whois, IP, or page text"
+          aria-label="Search the census by banner, product, location, whois, IP, or page text"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="banner, product, whois, IP, or page text…"
+          placeholder="banner, product, location, whois, IP, or page text…"
         />
       </div>
 
