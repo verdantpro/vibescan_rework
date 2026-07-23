@@ -28,6 +28,27 @@
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
+/* ---- Field Record design system (OSINT / evidence-board direction) ----
+   Verdant Protocol green on a warm slate ground, serif + mono. Scoped to
+   .record so pages adopt it one at a time without disturbing the legacy HUD
+   theme; redefining the shared token names here overrides them for descendants
+   only. Promote to :root once every page has migrated. */
+.record {
+  --ground: #15171b;
+  --panel: #1b1e23;
+  --exhibit-back: #0f1114;
+  --line: #2c3037;
+  --line-2: #3a3f48;
+  --ink: #e7e3d8;
+  --ink-dim: #a8a394;
+  --muted: #7b7a70;
+  --accent: #58a97c;       /* lifted pine — accent marks/text on dark */
+  --accent-deep: #2f6f4f;  /* Verdant brand pine — solid fills */
+  --accent-soft: #7fa88c;  /* sage — secondary */
+  --alert: #d9534a;        /* cleartext / no-TLS, semantic only */
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+
 * { box-sizing: border-box; }
 
 html, body, #root { height: 100%; }

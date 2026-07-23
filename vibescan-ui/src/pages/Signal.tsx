@@ -1,23 +1,26 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, imageURL, type SignalDetail } from "../api";
-import StatusBadge from "../components/StatusBadge";
 import "./Signal.css";
 
-function Field({
+function Note({
   label,
   value,
+  mono,
+  tone,
   hideEmpty,
 }: {
   label: string;
   value?: string | number | null;
+  mono?: boolean;
+  tone?: "alert";
   hideEmpty?: boolean;
 }) {
   if (hideEmpty && (value == null || value === "" || value === "unknown")) return null;
   return (
-    <div className="sig-field">
-      <span className="sig-flabel mono">{label}</span>
-      <span className="sig-fvalue mono">{value ?? "—"}</span>
+    <div className="fr-note">
+      <dt>{label}</dt>
+      <dd className={`${mono ? "hash" : ""}${tone === "alert" ? " alert" : ""}`}>{value ?? "—"}</dd>
     </div>
   );
 }
@@ -43,74 +46,91 @@ export default function Signal() {
     };
   }, [ip, port]);
 
-  if (state === "loading") return <div className="page wrap empty">◌ TUNING…</div>;
-  if (state === "error" || !d) return <div className="page wrap empty">SIGNAL NOT FOUND</div>;
+  if (state === "loading") return <div className="record"><div className="page wrap empty">◌ Tuning…</div></div>;
+  if (state === "error" || !d) return <div className="record"><div className="page wrap empty">Signal not found</div></div>;
 
   const s = d.service;
   const geo = s.geo;
+  const seen = s.updated_at?.replace("T", " ").replace("Z", " UTC");
+  const origin = geo ? [geo.city, geo.region, geo.country].filter(Boolean).join(" · ") : null;
+  const submitter = d.anon || d.submitted_by === "0.0.0.0" ? "anonymous" : d.submitted_by;
 
   return (
-    <div className="page wrap sig">
-      <div className="sig-top">
-        <Link to="/feed" className="mono sig-back">
-          ← feed
-        </Link>
-        <h1 className="sig-callsign display">
-          {s.ip}:{s.port}
-        </h1>
-        <div className="row sig-tags">
-          {s.secured ? (
-            <span className="lock mono" title="Captured over TLS (after any redirects)">HTTPS</span>
-          ) : (
-            <span className="insecure mono" title="Captured over cleartext HTTP (after any redirects)">HTTP</span>
-          )}
-          <StatusBadge status={s.http_status} />
-          {s.product && <span className="badge badge-mute">{s.product}</span>}
+    <div className="record">
+      <div className="page wrap sig-record">
+        <Link to="/feed" className="fr-back">← feed</Link>
+
+        <header className="fr-casehead">
+          <div>
+            <span className="fr-eyebrow">Case</span>
+            <h1 className="fr-callsign">
+              {s.ip}<span className="port">:{s.port}</span>
+            </h1>
+          </div>
+          <div className="fr-caseright">
+            <span className={`fr-class ${s.secured ? "ok" : "alert"}`}>
+              <b></b> {s.secured ? "Secured · TLS" : "Cleartext · No TLS"}
+            </span>
+            {seen && (
+              <div className="fr-filed">
+                <span>Seen</span>
+                {seen}
+              </div>
+            )}
+          </div>
+        </header>
+
+        <div className="fr-body">
+          <figure className="fr-exhibit">
+            <span className="fr-tick tl"></span><span className="fr-tick tr"></span>
+            <span className="fr-tick bl"></span><span className="fr-tick br"></span>
+            <div className="fr-exhibit-frame">
+              {s.image_url ? (
+                <img src={imageURL(s.image_url)} alt={`Captured screenshot of ${s.ip}:${s.port}`} />
+              ) : (
+                <div className="fr-noshot">No capture on record</div>
+              )}
+            </div>
+            <figcaption className="fr-cap">
+              <span>Exhibit A{s.capture_hash ? ` · capture ${s.capture_hash.slice(0, 8)}` : ""}</span>
+              <span>{s.capture_ext ? s.capture_ext.toUpperCase() : ""}</span>
+            </figcaption>
+          </figure>
+
+          <aside className="fr-notes">
+            <div className="fr-notes-h">Field notes</div>
+            <dl>
+              <Note label="Operator" value={s.whois} hideEmpty />
+              <Note label="Origin" value={origin} hideEmpty />
+              <Note label="Coord" value={geo ? `${geo.lat.toFixed(4)}, ${geo.lon.toFixed(4)}` : null} hideEmpty />
+              <Note label="Country" value={geo?.country_iso} hideEmpty />
+              <Note label="Server" value={s.product} hideEmpty />
+              <Note
+                label="Protocol"
+                value={s.secured ? "HTTPS · TLS" : "HTTP — no transport encryption"}
+                tone={s.secured ? undefined : "alert"}
+              />
+              <Note label="Status" value={s.http_status} />
+              <Note label="Cert CN" value={s.cert_cn} hideEmpty />
+              <Note label="pHash" value={s.screenshot_phash} mono hideEmpty />
+              <Note label="DOM" value={s.dom_hash} mono hideEmpty />
+              <Note label="Submitter" value={submitter} mono />
+            </dl>
+          </aside>
         </div>
-      </div>
 
-      <div className="sig-main">
-        <div className="sig-shot panel hud">
-          {s.image_url ? (
-            <img src={imageURL(s.image_url)} alt={`${s.ip}:${s.port}`} />
-          ) : (
-            <div className="empty">NO CAPTURE</div>
-          )}
-        </div>
-
-        <aside className="sig-info panel panel-pad">
-          <div className="eyebrow" style={{ marginBottom: 12 }}>◊ Record</div>
-          <Field label="OPERATOR" value={s.whois} hideEmpty />
-          <Field
-            label="ORIGIN"
-            value={geo ? [geo.city, geo.region, geo.country].filter(Boolean).join(", ") : null}
-            hideEmpty
-          />
-          <Field label="COORD" value={geo ? `${geo.lat.toFixed(4)}, ${geo.lon.toFixed(4)}` : null} hideEmpty />
-          <Field label="COUNTRY" value={geo?.country_iso} hideEmpty />
-          <Field label="CERT CN" value={s.cert_cn} hideEmpty />
-          <Field label="pHASH" value={s.screenshot_phash} hideEmpty />
-          <Field label="DOM HASH" value={s.dom_hash} hideEmpty />
-          <Field label="CAPTURE" value={s.capture_hash ? `${s.capture_hash}.${s.capture_ext}` : null} hideEmpty />
-          <Field
-            label="SUBMITTER"
-            value={d.anon || d.submitted_by === "0.0.0.0" ? "anonymous" : d.submitted_by}
-          />
-          <Field label="SEEN" value={s.updated_at?.replace("T", " ").replace("Z", " UTC")} />
-        </aside>
-      </div>
-
-      <section className="panel panel-pad sig-banner">
-        <div className="eyebrow" style={{ marginBottom: 10 }}>◊ Service banner</div>
-        <pre className="mono sig-pre">{s.banner || "— no banner —"}</pre>
-      </section>
-
-      {d.fulltext && (
-        <section className="panel panel-pad sig-source">
-          <div className="eyebrow" style={{ marginBottom: 10 }}>◊ Page source ({d.fulltext.length.toLocaleString()} chars)</div>
-          <pre className="mono sig-pre sig-fulltext">{d.fulltext}</pre>
+        <section className="fr-sec">
+          <div className="fr-sec-h">Service banner</div>
+          <pre className="fr-pre">{s.banner || "— no banner —"}</pre>
         </section>
-      )}
+
+        {d.fulltext && (
+          <section className="fr-sec">
+            <div className="fr-sec-h">Page source · {d.fulltext.length.toLocaleString()} chars</div>
+            <pre className="fr-pre fr-scroll">{d.fulltext}</pre>
+          </section>
+        )}
+      </div>
     </div>
   );
 }
