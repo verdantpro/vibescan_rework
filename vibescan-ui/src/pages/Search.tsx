@@ -16,6 +16,7 @@ export default function Search() {
   const [sec, setSec] = useState<SecFilter>("any");
   const [status, setStatus] = useState<number | null>(null);
   const [hasVulns, setHasVulns] = useState(false);
+  const [verdict, setVerdict] = useState("");
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -30,14 +31,14 @@ export default function Search() {
   }, [q]);
 
   const active = useMemo(
-    () => debounced !== "" || port !== "" || sec !== "any" || status !== null || hasVulns,
-    [debounced, port, sec, status, hasVulns]
+    () => debounced !== "" || port !== "" || sec !== "any" || status !== null || hasVulns || verdict !== "",
+    [debounced, port, sec, status, hasVulns, verdict]
   );
 
   // Any query/filter change restarts pagination from the first page.
   useEffect(() => {
     setPage(0);
-  }, [debounced, port, sec, status, hasVulns]);
+  }, [debounced, port, sec, status, hasVulns, verdict]);
 
   useEffect(() => {
     if (!active) {
@@ -57,6 +58,7 @@ export default function Search() {
         status: status ?? undefined,
         secured: sec === "any" ? undefined : sec === "https",
         hasVulns: hasVulns || undefined,
+        verdict: verdict || undefined,
         limit: PAGE,
         offset: page * PAGE,
       })
@@ -75,7 +77,7 @@ export default function Search() {
     return () => {
       alive = false;
     };
-  }, [debounced, port, sec, status, hasVulns, active, page, reloadKey]);
+  }, [debounced, port, sec, status, hasVulns, verdict, active, page, reloadKey]);
 
   const statuses: [string, number | null][] = [
     ["any", null],
@@ -157,6 +159,21 @@ export default function Search() {
             >
               has CVEs
             </button>
+          </div>
+        </div>
+        <div className="filter-group">
+          <span className="filter-label mono">Reputation</span>
+          <div className="chips">
+            {["malicious", "suspicious", "clean"].map((v) => (
+              <button
+                key={v}
+                className={`chip mono${verdict === v ? " on" : ""}`}
+                aria-pressed={verdict === v}
+                onClick={() => setVerdict((cur) => (cur === v ? "" : v))}
+              >
+                {v}
+              </button>
+            ))}
           </div>
         </div>
       </div>

@@ -46,6 +46,16 @@
   border-radius: 3px;
   backdrop-filter: blur(2px);
 }
+.card-verdict {
+  position: absolute; left: 8px; top: 8px;
+  font-size: 10px; padding: 2px 7px;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: rgba(15, 17, 20, 0.82);
+  border-radius: 3px;
+  backdrop-filter: blur(2px);
+}
+.card-verdict.malicious { color: var(--alert); border: 1px solid rgba(217, 83, 74, 0.55); }
+.card-verdict.suspicious { color: var(--amber); border: 1px solid rgba(207, 155, 70, 0.55); }
 .card-meta { padding: 10px 12px 12px; display: grid; gap: 6px; }
 .card-product { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%; }
 .card-sub { font-size: 11px; }

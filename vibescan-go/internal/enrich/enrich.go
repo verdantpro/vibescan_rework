@@ -36,6 +36,12 @@ type Record struct {
 	LastSeen  time.Time `json:"last_seen,omitempty" bson:"last_seen,omitempty"`
 	Sources   []string  `json:"sources" bson:"sources"`
 	FetchedAt time.Time `json:"fetched_at" bson:"fetched_at"`
+
+	// Threat intelligence (ported from scope-recon). Populated on the deep
+	// (on-demand) path; keyless geo/BGP also on the worker path.
+	Verdict       string       `json:"verdict,omitempty" bson:"verdict,omitempty"` // clean|suspicious|malicious
+	Threat        *ThreatIntel `json:"threat,omitempty" bson:"threat,omitempty"`
+	DeepFetchedAt time.Time    `json:"deep_fetched_at,omitempty" bson:"deep_fetched_at,omitempty"`
 }
 
 // Cache is the durable enrichment store (implemented by internal/store).
@@ -52,13 +58,32 @@ const (
 	userAgent      = "vibescan/1.0 (+https://github.com/verdantpro/vibescan_rework)"
 )
 
+// Options configures the Enricher. All keys are optional; a missing key skips
+// that source (graceful degradation, like scope-recon).
+type Options struct {
+	ShodanKey     string
+	VirusTotalKey string
+	AbuseIPDBKey  string
+	GreyNoiseKey  string
+	OTXKey        string
+	ThreatFoxKey  string
+	IPQSKey       string
+	PulsediveKey  string
+	IPInfoToken   string
+
+	TTL       time.Duration // base cache freshness (Shodan/InternetDB)
+	ThreatTTL time.Duration // reputation freshness (shorter)
+	RPS       float64       // outbound rate for the throttled (worker) path
+}
+
 // Enricher resolves and caches per-IP enrichment.
 type Enricher struct {
-	cache  Cache
-	client *http.Client
-	lim    *limiter
-	key    string
-	ttl    time.Duration
+	cache     Cache
+	client    *http.Client
+	lim       *limiter
+	opt       Options
+	ttl       time.Duration
+	threatTTL time.Duration
 
 	mu  sync.Mutex
 	mem map[int64]memEntry
@@ -69,25 +94,27 @@ type memEntry struct {
 	at  time.Time
 }
 
-// NewEnricher builds an Enricher. cache may be nil (in-memory only). apiKey ""
-// disables the paid Host API (InternetDB still works). rps throttles outbound
-// requests (shared across on-demand + worker); ttl bounds cache freshness.
-func NewEnricher(cache Cache, apiKey string, ttl time.Duration, rps float64) *Enricher {
-	if ttl <= 0 {
-		ttl = 168 * time.Hour
+// NewEnricher builds an Enricher. cache may be nil (in-memory only).
+func NewEnricher(cache Cache, o Options) *Enricher {
+	if o.TTL <= 0 {
+		o.TTL = 168 * time.Hour
+	}
+	if o.ThreatTTL <= 0 {
+		o.ThreatTTL = 24 * time.Hour
 	}
 	return &Enricher{
-		cache:  cache,
-		client: &http.Client{Timeout: requestTimeout},
-		lim:    newLimiter(rps),
-		key:    apiKey,
-		ttl:    ttl,
-		mem:    make(map[int64]memEntry),
+		cache:     cache,
+		client:    &http.Client{Timeout: requestTimeout},
+		lim:       newLimiter(o.RPS),
+		opt:       o,
+		ttl:       o.TTL,
+		threatTTL: o.ThreatTTL,
+		mem:       make(map[int64]memEntry),
 	}
 }
 
 // HasKey reports whether the paid Shodan Host API is configured.
-func (e *Enricher) HasKey() bool { return e != nil && e.key != "" }
+func (e *Enricher) HasKey() bool { return e != nil && e.opt.ShodanKey != "" }
 
 // Get returns enrichment for ip, from cache when fresh. deep additionally queries
 // the paid Host API (when a key is set) for org/ISP/ASN/product; the background
@@ -111,14 +138,34 @@ func (e *Enricher) Get(ctx context.Context, ip string, deep bool) (Record, error
 	}
 
 	rec := Record{IP: ip, FetchedAt: now, Sources: []string{}}
+	threat := &ThreatIntel{}
+
+	// Keyless sources (throttled) — also the worker path.
 	if idb, ok := e.internetDB(ctx, ip); ok {
 		rec.merge(idb)
 	}
-	if deep && e.key != "" {
-		if sh, ok := e.shodanHost(ctx, ip); ok {
-			rec.merge(sh)
-		}
+	if d, ok := e.ipAPI(ctx, ip); ok {
+		threat.IPAPI = d
 	}
+	if d, ok := e.bgp(ctx, ip); ok {
+		threat.BGP = d
+	}
+
+	// Deep (on-demand) — Shodan Host + keyed threat feeds, fanned out concurrently.
+	if deep {
+		if e.opt.ShodanKey != "" {
+			if sh, ok := e.shodanHost(ctx, ip); ok {
+				rec.merge(sh)
+			}
+		}
+		e.fanOutThreat(ctx, ip, threat)
+		rec.DeepFetchedAt = now
+	}
+
+	if !threat.empty() {
+		rec.Threat = threat
+	}
+	rec.Verdict = computeVerdict(threat)
 	rec.normalize()
 
 	e.memPut(ipInt, rec)
@@ -135,7 +182,15 @@ func (e *Enricher) fresh(rec Record, now time.Time, deep bool) bool {
 	if now.Sub(rec.FetchedAt) >= e.ttl {
 		return false
 	}
-	if deep && e.key != "" && !rec.hasSource("shodan") {
+	if !deep {
+		return true
+	}
+	// A deep request needs the reputation portion, and fresh within the (shorter)
+	// threat TTL. A Shodan key additionally requires a Shodan-sourced record.
+	if rec.DeepFetchedAt.IsZero() || now.Sub(rec.DeepFetchedAt) >= e.threatTTL {
+		return false
+	}
+	if e.opt.ShodanKey != "" && !rec.hasSource("shodan") {
 		return false
 	}
 	return true

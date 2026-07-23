@@ -109,6 +109,7 @@ func (m *Mongo) DenormalizeEnrichment(ctx context.Context, ipInt int64, rec enri
 			"vuln_count":  len(rec.Vulns),
 			"shodan_tags": tags,
 			"extra_ports": ports,
+			"verdict":     rec.Verdict, // "" for keyless/worker; set on the deep path
 			"enriched_at": time.Now().UTC(),
 		}},
 	)

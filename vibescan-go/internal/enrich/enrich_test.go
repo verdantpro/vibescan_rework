@@ -61,24 +61,55 @@ func TestMergeAndNormalize(t *testing.T) {
 	}
 }
 
+func TestComputeVerdict(t *testing.T) {
+	if v := computeVerdict(nil); v != "" {
+		t.Fatalf("nil → %q, want empty", v)
+	}
+	// Keyless-only (geo/BGP, no reputation) must not emit a false 'clean'.
+	if v := computeVerdict(&ThreatIntel{IPAPI: &IPAPIData{Country: "US"}}); v != "" {
+		t.Fatalf("no reputation → %q, want empty", v)
+	}
+	// A reputation source with no findings → clean.
+	if v := computeVerdict(&ThreatIntel{VirusTotal: &VTData{Harmless: 80}}); v != "clean" {
+		t.Fatalf("harmless VT → %q, want clean", v)
+	}
+	// Suspicious escalation.
+	if v := computeVerdict(&ThreatIntel{AbuseIPDB: &AbuseData{Confidence: 40}}); v != "suspicious" {
+		t.Fatalf("abuse 40 → %q, want suspicious", v)
+	}
+	// Malicious escalation dominates.
+	if v := computeVerdict(&ThreatIntel{
+		OTX:        &OTXData{PulseCount: 3}, // would be suspicious alone
+		VirusTotal: &VTData{Malicious: 5},   // malicious
+	}); v != "malicious" {
+		t.Fatalf("VT malicious → %q, want malicious", v)
+	}
+}
+
 func TestFreshness(t *testing.T) {
 	now := time.Now()
 	rec := Record{Sources: []string{"internetdb"}, FetchedAt: now}
 
-	e := NewEnricher(nil, "", 0, 1) // no key
+	e := NewEnricher(nil, Options{RPS: 1}) // no key
 	if !e.fresh(rec, now, false) {
 		t.Fatal("shallow record should be fresh for non-deep")
-	}
-	if !e.fresh(rec, now, true) {
-		t.Fatal("no-key deep should not force a shodan refetch")
 	}
 	// Stale by age.
 	if e.fresh(Record{Sources: []string{"internetdb"}, FetchedAt: now.Add(-200 * time.Hour)}, now, false) {
 		t.Fatal("record older than the TTL should be stale")
 	}
-	// With a key, a deep request needs a shodan-sourced record.
-	ek := NewEnricher(nil, "KEY", 0, 1)
-	if ek.fresh(rec, now, true) {
-		t.Fatal("keyed deep should refetch a shallow record")
+	// A deep request needs a fresh DeepFetchedAt regardless of key.
+	if e.fresh(rec, now, true) {
+		t.Fatal("deep request should refetch a record with no DeepFetchedAt")
+	}
+	deepRec := Record{Sources: []string{"internetdb", "shodan"}, FetchedAt: now, DeepFetchedAt: now}
+	if !e.fresh(deepRec, now, true) {
+		t.Fatal("fresh deep record should be reused")
+	}
+	// With a Shodan key, a deep request also needs a shodan-sourced record.
+	ek := NewEnricher(nil, Options{ShodanKey: "KEY", RPS: 1})
+	shallowDeep := Record{Sources: []string{"internetdb"}, FetchedAt: now, DeepFetchedAt: now}
+	if ek.fresh(shallowDeep, now, true) {
+		t.Fatal("keyed deep should refetch a record with no shodan source")
 	}
 }

@@ -38,6 +38,7 @@ export interface Tile {
   vuln_count?: number;
   tags?: string[];
   extra_ports?: number[];
+  verdict?: string;
 }
 
 export interface Enrichment {
@@ -56,6 +57,33 @@ export interface Enrichment {
   last_seen?: string;
   sources: string[];
   fetched_at: string;
+  verdict?: "clean" | "suspicious" | "malicious" | "";
+  threat?: ThreatIntel;
+}
+
+export interface ThreatIntel {
+  ipapi?: { country?: string; region?: string; city?: string; isp?: string; org?: string; asn?: string };
+  bgp?: { asn?: number; asn_name?: string; asn_description?: string; rir?: string; prefixes?: string[] };
+  abuseipdb?: {
+    abuse_confidence: number; total_reports: number; country?: string; domain?: string; isp?: string;
+    usage_type?: string; last_reported_at?: string; is_tor: boolean; is_whitelisted: boolean;
+  };
+  virustotal?: { malicious: number; suspicious: number; harmless: number; undetected: number; last_analysis_date?: string };
+  greynoise?: { noise: boolean; riot: boolean; classification?: string; name?: string; last_seen?: string };
+  otx?: { pulse_count: number; pulse_names?: string[] };
+  threatfox?: {
+    ioc_count: number;
+    iocs?: { ioc: string; threat_type?: string; malware?: string; confidence_level: number; first_seen?: string; last_seen?: string }[];
+  };
+  ipqs?: {
+    fraud_score: number; proxy: boolean; vpn: boolean; tor: boolean; bot_status: boolean;
+    recent_abuse: boolean; abuse_velocity?: string; isp?: string; country_code?: string;
+  };
+  pulsedive?: { risk?: string; last_seen?: string; threats?: string[]; feeds?: string[] };
+  ipinfo?: {
+    hostname?: string; city?: string; region?: string; country?: string; org?: string; timezone?: string;
+    is_vpn: boolean; is_proxy: boolean; is_tor: boolean; is_hosting: boolean;
+  };
 }
 
 export interface ListResponse {
@@ -93,6 +121,7 @@ export interface Stats {
   submissions_over_time: Record<string, number>;
   exposed_services: number;
   top_tags: Record<string, number>;
+  verdicts: Record<string, number>;
 }
 
 export interface SearchParams {
@@ -103,6 +132,7 @@ export interface SearchParams {
   product?: string;
   hasVulns?: boolean;
   tag?: string;
+  verdict?: string;
   limit?: number;
   offset?: number;
 }
@@ -179,6 +209,7 @@ export const api = {
     if (p.product) q.set("product", p.product);
     if (p.hasVulns) q.set("has_vulns", "1");
     if (p.tag) q.set("tag", p.tag);
+    if (p.verdict) q.set("verdict", p.verdict);
     q.set("limit", String(p.limit ?? 60));
     q.set("offset", String(p.offset ?? 0));
     return get<ListResponse>(`/api/v2/search?${q.toString()}`);

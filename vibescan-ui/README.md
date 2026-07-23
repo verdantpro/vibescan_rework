@@ -72,7 +72,9 @@ the embedded app uses relative URLs even without an env file.
   to the abuse contact; keep it in sync with what the collector actually enforces
   (e.g. the agent CIDR blacklist).
 - The Signal page's **Cross-reference** section (`components/CrossReference`)
-  lazy-loads `/api/v2/enrich/{ip}` (Shodan / InternetDB) for other open ports,
-  CVEs, tags, and ownership; `SignalCard` shows a `⚠ N CVEs` badge and Search has
-  a "has CVEs" filter, both fed by the collector's denormalized enrichment fields.
+  lazy-loads `/api/v2/enrich/{ip}` for other open ports, CVEs, tags, ownership,
+  and — from the ported threat feeds — a CLEAN/SUSPICIOUS/MALICIOUS verdict plus
+  reputation/flags/IOCs (attributed per vendor). `SignalCard` shows `⚠ N CVEs`
+  and reputation badges; Search filters on `has CVEs` and `verdict`; Stats has an
+  exposure + reputation facet — all fed by the collector's denormalized fields.
 - Deploy of the combined stack: **[`../vibescan-go/deploy/DEPLOY.md`](../vibescan-go/deploy/DEPLOY.md)**.

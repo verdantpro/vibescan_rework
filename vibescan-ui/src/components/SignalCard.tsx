@@ -20,6 +20,11 @@ export default function SignalCard({ t }: { t: Tile }) {
             ⚠ {t.vuln_count} CVE{t.vuln_count > 1 ? "s" : ""}
           </span>
         ) : null}
+        {t.verdict === "malicious" || t.verdict === "suspicious" ? (
+          <span className={`card-verdict mono ${t.verdict}`} title={`Reputation: ${t.verdict} (third-party feeds)`}>
+            {t.verdict === "malicious" ? "⚑ malicious" : "⚑ suspect"}
+          </span>
+        ) : null}
       </div>
       <div className="card-meta">
         <div className="row spread">

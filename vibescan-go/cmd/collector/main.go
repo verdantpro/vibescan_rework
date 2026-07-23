@@ -71,8 +71,20 @@ func main() {
 	// Host enrichment (Shodan InternetDB free; paid Host API on-demand if keyed).
 	var enricher *enrich.Enricher
 	if cfg.EnrichEnabled {
-		enricher = enrich.NewEnricher(mongoStore, cfg.ShodanAPIKey,
-			time.Duration(cfg.EnrichTTLHours)*time.Hour, cfg.EnrichWorkerRPS)
+		enricher = enrich.NewEnricher(mongoStore, enrich.Options{
+			ShodanKey:     cfg.ShodanAPIKey,
+			VirusTotalKey: cfg.VirusTotalKey,
+			AbuseIPDBKey:  cfg.AbuseIPDBKey,
+			GreyNoiseKey:  cfg.GreyNoiseKey,
+			OTXKey:        cfg.OTXKey,
+			ThreatFoxKey:  cfg.ThreatFoxKey,
+			IPQSKey:       cfg.IPQSKey,
+			PulsediveKey:  cfg.PulsediveKey,
+			IPInfoToken:   cfg.IPInfoToken,
+			TTL:           time.Duration(cfg.EnrichTTLHours) * time.Hour,
+			ThreatTTL:     time.Duration(cfg.ThreatTTLHours) * time.Hour,
+			RPS:           cfg.EnrichWorkerRPS,
+		})
 		if cfg.ShodanAPIKey != "" {
 			log.Printf("[collector] enrichment enabled (InternetDB + Shodan Host API)")
 		} else {

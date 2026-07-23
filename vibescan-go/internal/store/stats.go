@@ -25,6 +25,7 @@ type Stats struct {
 	SubmissionsOverTime map[string]int `json:"submissions_over_time"`
 	ExposedServices     int            `json:"exposed_services"` // services with >=1 known CVE
 	TopTags             map[string]int `json:"top_tags"`         // Shodan tags across enriched hosts
+	Verdicts            map[string]int `json:"verdicts"`         // reputation verdict distribution
 }
 
 // StatsTotals holds the headline counts.
@@ -35,16 +36,17 @@ type StatsTotals struct {
 
 // facetResult decodes the single $facet document produced by the pipeline.
 type facetResult struct {
-	Ports   []kv         `bson:"ports"`
-	Status  []statusRow  `bson:"status"`
-	Secure  []securedRow `bson:"secure"`
-	Banners []kv         `bson:"banners"`
-	Hosts   []countOnly  `bson:"hosts"`
-	Clients []kvStr      `bson:"clients"`
-	Times   []timeRow    `bson:"times"`
-	Total   []countOnly  `bson:"total"`
-	Exposed []countOnly  `bson:"exposed"`
-	Tags    []kv         `bson:"tags"`
+	Ports    []kv         `bson:"ports"`
+	Status   []statusRow  `bson:"status"`
+	Secure   []securedRow `bson:"secure"`
+	Banners  []kv         `bson:"banners"`
+	Hosts    []countOnly  `bson:"hosts"`
+	Clients  []kvStr      `bson:"clients"`
+	Times    []timeRow    `bson:"times"`
+	Total    []countOnly  `bson:"total"`
+	Exposed  []countOnly  `bson:"exposed"`
+	Tags     []kv         `bson:"tags"`
+	Verdicts []kv         `bson:"verdicts"`
 }
 
 type kv struct {
@@ -191,6 +193,10 @@ func (m *Mongo) StatsAggregate(ctx context.Context, timeRangeHours, maxTimeMS in
 			bson.D{{Key: "$sort", Value: bson.D{{Key: "count", Value: -1}}}},
 			bson.D{{Key: "$limit", Value: 15}},
 		}},
+		{Key: "verdicts", Value: bson.A{
+			bson.D{{Key: "$match", Value: bson.D{{Key: "verdict", Value: bson.D{{Key: "$in", Value: bson.A{"clean", "suspicious", "malicious"}}}}}}},
+			bson.D{{Key: "$group", Value: bson.D{{Key: "_id", Value: "$verdict"}, {Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}}}}},
+		}},
 	}
 
 	pipeline := mongo.Pipeline{
@@ -222,6 +228,7 @@ func (m *Mongo) StatsAggregate(ctx context.Context, timeRangeHours, maxTimeMS in
 		SubmissionsByClient: map[string]int{},
 		SubmissionsOverTime: map[string]int{},
 		TopTags:             map[string]int{},
+		Verdicts:            map[string]int{},
 	}
 	if len(rows) == 1 {
 		f := rows[0]
@@ -264,6 +271,9 @@ func (m *Mongo) StatsAggregate(ctx context.Context, timeRangeHours, maxTimeMS in
 		}
 		for _, t := range f.Tags {
 			out.TopTags[t.ID] = t.Count
+		}
+		for _, v := range f.Verdicts {
+			out.Verdicts[v.ID] = v.Count
 		}
 	}
 

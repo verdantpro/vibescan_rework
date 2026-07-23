@@ -177,6 +177,14 @@ public URL (S3/CloudFront or R2) when configured, otherwise `/api/v2/image/...`.
   enriched via InternetDB (free), denormalizing `vuln_count`/`shodan_tags` onto
   results so tiles, `search?has_vulns=1&tag=`, and the Stats exposure facet work
   census-wide. The API key never reaches the browser.
+- **Threat intelligence** (`internal/enrich/threat.go`, ported from
+  [scope-recon](https://github.com/nethoundsh/scope-recon)): on the on-demand
+  Signal view, each IP is cross-referenced against ip-api, RIPEstat, VirusTotal,
+  AbuseIPDB, GreyNoise, AlienVault OTX, ThreatFox, IPQualityScore, Pulsedive, and
+  IPinfo (fanned out concurrently), yielding a CLEAN/SUSPICIOUS/MALICIOUS
+  `verdict`. Each source is gated by its own optional key (missing = skipped);
+  keys stay server-side. ip-api + RIPEstat (keyless) also run in the worker.
+  `search?verdict=` and a Stats verdict facet cover hosts that have been enriched.
 - Votes, tags, favorites, auth, and live SSE streams are not in this layer yet.
 
 ## Agent

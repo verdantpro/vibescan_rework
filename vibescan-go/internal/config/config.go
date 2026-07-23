@@ -64,6 +64,19 @@ type Config struct {
 	EnrichWorkerEnabled bool    // background worker enriches recent hosts (InternetDB only)
 	EnrichWorkerRPS     float64 // shared outbound rate to Shodan/InternetDB
 	EnrichWorkerBatch   int     // hosts enriched per worker tick
+
+	// Threat-intel enrichment (ported from scope-recon). Each key is optional; a
+	// missing key skips that source. ip-api + RIPEstat are keyless. Keyed sources
+	// run on-demand only (Signal view) to protect free quotas.
+	VirusTotalKey  string
+	AbuseIPDBKey   string
+	GreyNoiseKey   string
+	OTXKey         string
+	ThreatFoxKey   string
+	IPQSKey        string
+	PulsediveKey   string
+	IPInfoToken    string
+	ThreatTTLHours int // reputation cache freshness (shorter than Shodan's)
 }
 
 // trueValues mirrors common/transport.py:_TRUE_VALUES.
@@ -206,6 +219,16 @@ func Load() *Config {
 		EnrichWorkerEnabled: envBool("VIBESCAN_ENRICH_WORKER", true),
 		EnrichWorkerRPS:     envFloat("VIBESCAN_ENRICH_RPS", 1),
 		EnrichWorkerBatch:   envInt("VIBESCAN_ENRICH_BATCH", 20),
+
+		VirusTotalKey:  envStr("VIRUSTOTAL_API_KEY", ""),
+		AbuseIPDBKey:   envStr("ABUSEIPDB_API_KEY", ""),
+		GreyNoiseKey:   envStr("GREYNOISE_API_KEY", ""),
+		OTXKey:         envStr("OTX_API_KEY", ""),
+		ThreatFoxKey:   envStr("THREATFOX_API_KEY", ""),
+		IPQSKey:        envStr("IPQS_API_KEY", ""),
+		PulsediveKey:   envStr("PULSEDIVE_API_KEY", ""),
+		IPInfoToken:    envStr("IPINFO_TOKEN", ""),
+		ThreatTTLHours: envInt("VIBESCAN_THREAT_TTL_HOURS", 24),
 	}
 
 	// Clamp ingest batch size to the same 1..50 window as the Python server.

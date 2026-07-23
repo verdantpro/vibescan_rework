@@ -44,6 +44,7 @@ func (m *Mongo) EnsureIndexes(ctx context.Context) error {
 		{Keys: bson.D{{Key: "enriched_at", Value: 1}}, Options: options.Index().SetName("idx_enriched_at")},
 		{Keys: bson.D{{Key: "vuln_count", Value: 1}}, Options: options.Index().SetName("idx_vuln_count")},
 		{Keys: bson.D{{Key: "shodan_tags", Value: 1}}, Options: options.Index().SetName("idx_shodan_tags").SetSparse(true)},
+		{Keys: bson.D{{Key: "verdict", Value: 1}}, Options: options.Index().SetName("idx_verdict").SetSparse(true)},
 	}
 	if _, err := m.results.Indexes().CreateMany(ctx, models); err != nil {
 		return err

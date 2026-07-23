@@ -74,6 +74,12 @@ export default function About() {
             or sensitive. If a record includes information about you or someone else that shouldn't be
             on public display, tell us and we'll take it down.
           </p>
+          <p>
+            Hosts are also cross-referenced against third-party reputation and threat feeds
+            (Shodan, VirusTotal, AbuseIPDB, GreyNoise, and others, each attributed on the record).
+            Those verdicts are the vendors', not ours, and can be wrong — if a label is inaccurate,
+            dispute it at the address below and we'll correct or remove it.
+          </p>
         </section>
 
         <section className="about-sec about-contact">

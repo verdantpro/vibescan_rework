@@ -56,13 +56,13 @@ func parseInternetDB(body []byte) (Record, bool) {
 // shodanHost queries the paid Shodan Host API for richer ownership/product data.
 // Called only on the on-demand path when a key is configured.
 func (e *Enricher) shodanHost(ctx context.Context, ip string) (Record, bool) {
-	if e.key == "" {
+	if e.opt.ShodanKey == "" {
 		return Record{}, false
 	}
 	if err := e.lim.wait(ctx); err != nil {
 		return Record{}, false
 	}
-	q := url.Values{"key": {e.key}, "minify": {"false"}}
+	q := url.Values{"key": {e.opt.ShodanKey}, "minify": {"false"}}
 	u := "https://api.shodan.io/shodan/host/" + url.PathEscape(ip) + "?" + q.Encode()
 	body, status, ok := e.fetch(ctx, u, map[string]string{})
 	if !ok || status != http.StatusOK {

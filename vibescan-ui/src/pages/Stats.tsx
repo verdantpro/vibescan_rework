@@ -20,6 +20,12 @@ const STATUS_COLOR: Record<string, string> = {
   "5xx": "var(--red)",
 };
 
+const VERDICT_COLOR: Record<string, string> = {
+  malicious: "var(--red)",
+  suspicious: "var(--amber)",
+  clean: "var(--accent)",
+};
+
 function BarRow({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
   const pct = max > 0 ? Math.max(2, (value / max) * 100) : 0;
   return (
@@ -155,6 +161,25 @@ export default function StatsPage() {
             <section className="panel panel-pad">
               <div className="eyebrow chart-head">◊ Shodan tags</div>
               <BarList data={s.top_tags} color="var(--accent-soft)" limit={8} />
+            </section>
+
+            <section className="panel panel-pad">
+              <div className="eyebrow chart-head">◊ Reputation</div>
+              {Object.keys(s.verdicts || {}).length ? (
+                <div className="bar-list">
+                  {(["malicious", "suspicious", "clean"] as const).map((k) => (
+                    <BarRow
+                      key={k}
+                      label={k}
+                      value={s.verdicts[k] || 0}
+                      max={Math.max(...Object.values(s.verdicts), 1)}
+                      color={VERDICT_COLOR[k]}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="bar-empty mono dim">no reputation data yet</div>
+              )}
             </section>
 
             <section className="panel panel-pad stats-time">

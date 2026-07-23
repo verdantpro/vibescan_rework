@@ -38,6 +38,7 @@ type tile struct {
 	VulnCount  int      `json:"vuln_count"`
 	Tags       []string `json:"tags,omitempty"`
 	ExtraPorts []int    `json:"extra_ports,omitempty"`
+	Verdict    string   `json:"verdict,omitempty"`
 }
 
 // resolveImageURL returns the best image URL for a capture: the R2 public URL
@@ -81,6 +82,7 @@ func (s *Server) toTile(d store.ServiceDoc) tile {
 		VulnCount:       d.VulnCount,
 		Tags:            d.ShodanTags,
 		ExtraPorts:      d.ExtraPorts,
+		Verdict:         d.Verdict,
 	}
 }
 
@@ -164,6 +166,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		opts.HasVulns = &b
 	}
 	opts.Tag = strings.TrimSpace(r.URL.Query().Get("tag"))
+	opts.Verdict = strings.TrimSpace(r.URL.Query().Get("verdict"))
 
 	docs, err := s.store.Search(r.Context(), opts)
 	if err != nil {
@@ -248,7 +251,8 @@ func (s *Server) handleEnrich(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "enrichment disabled"})
 		return
 	}
-	if _, ok := geo.IPStrToInt(r.PathValue("ip")); !ok {
+	ipInt, ok := geo.IPStrToInt(r.PathValue("ip"))
+	if !ok {
 		http.Error(w, "invalid ip", http.StatusBadRequest)
 		return
 	}
@@ -256,6 +260,11 @@ func (s *Server) handleEnrich(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.readError(w, err)
 		return
+	}
+	// Push the (deep) verdict + summary onto this IP's result docs so tiles and
+	// search reflect what a viewer just computed.
+	if s.store.Available() {
+		_ = s.store.DenormalizeEnrichment(r.Context(), ipInt, rec)
 	}
 	writeJSON(w, http.StatusOK, rec)
 }
