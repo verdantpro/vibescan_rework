@@ -91,6 +91,8 @@ func (a *Agent) scanOnce(ctx context.Context) error {
 	a.refreshBlacklist(ctx)
 
 	ips := a.bl.RandomBatch(a.cfg.BatchSize)
+	log.Printf("[agent] batch: nmap %d IPs × ports %v …", len(ips), a.cfg.Ports)
+	t0 := time.Now()
 	scanCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 	scanned, err := RunNmap(scanCtx, ips, a.cfg.Ports, a.cfg.NmapOptions)
@@ -98,8 +100,17 @@ func (a *Agent) scanOnce(ctx context.Context) error {
 		return fmt.Errorf("nmap: %w", err)
 	}
 	if len(scanned) == 0 {
-		return nil // nothing open in this batch
+		// Most random IPv4 batches are empty — still log so operators know we're alive.
+		log.Printf("[agent] batch: nmap done in %s — 0 open hosts (continue)", time.Since(t0).Round(time.Millisecond))
+		return nil
 	}
+
+	openPorts := 0
+	for _, ports := range scanned {
+		openPorts += len(ports)
+	}
+	log.Printf("[agent] batch: nmap done in %s — %d hosts / %d open ports; capturing…",
+		time.Since(t0).Round(time.Millisecond), len(scanned), openPorts)
 
 	// Build records concurrently, bounded by ScanThreads.
 	var (
@@ -124,6 +135,7 @@ func (a *Agent) scanOnce(ctx context.Context) error {
 	wg.Wait()
 
 	if len(records) == 0 {
+		log.Printf("[agent] batch: capture produced 0 usable hosts (screenshots failed or empty)")
 		return nil
 	}
 	summary, err := a.client.Submit(ctx, a.buildPayload(records))
