@@ -85,6 +85,7 @@ jobs:
           PARAMS=$(jq -n \
             --arg image "$IMAGE" \
             --arg dir "$DEPLOY_DIR" \
+            --arg region "$AWS_REGION" \
             '{
               commands: [
                 ("echo Deploying " + $image),
@@ -95,11 +96,24 @@ jobs:
                   "sed -i \"s|^IMAGE=.*|IMAGE=" + $image + "|\" .env; " +
                   "else printf \"\\nIMAGE=%s\\n\" \"" + $image + "\" >> .env; fi"
                 ),
-                "docker compose -f docker-compose.registry.yml pull",
-                "docker compose -f docker-compose.registry.yml up -d",
+                # Authenticate to ECR on the box (tokens expire ~12h). Without
+                # this the pull below fails and — since sh has no set -e — the
+                # script would sail on to the healthcheck and report a green
+                # deploy while the OLD container keeps running.
+                ("aws ecr get-login-password --region " + $region +
+                  " | docker login --username AWS --password-stdin " +
+                  ($image | split("/")[0]) +
+                  " || { echo ECR_LOGIN_FAILED >&2; exit 1; }"),
+                "docker compose -f docker-compose.registry.yml pull || { echo PULL_FAILED >&2; exit 1; }",
+                "docker compose -f docker-compose.registry.yml up -d || { echo UP_FAILED >&2; exit 1; }",
+                # Fail loudly if the running app image is not the tag we just
+                # deployed — a no-op roll must never look like success.
+                ("RUNNING=$(docker inspect -f \"{{.Config.Image}}\" $(docker compose -f docker-compose.registry.yml ps -q app)); " +
+                  "echo running_image=$RUNNING; " +
+                  "test \"$RUNNING\" = \"" + $image + "\" || { echo IMAGE_MISMATCH expected=" + $image + " >&2; exit 1; }"),
                 "docker compose -f docker-compose.registry.yml run --rm --entrypoint migrate app || true",
                 "sleep 3",
-                "curl -fsS --max-time 20 https://vibescan.verdantprotocol.com/api/healthz",
+                "curl -fsS --max-time 20 https://vibescan.verdantprotocol.com/api/healthz || { echo HEALTHCHECK_FAILED >&2; exit 1; }",
                 "echo",
                 "echo Healthcheck OK"
               ]
