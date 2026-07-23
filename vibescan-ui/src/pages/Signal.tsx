@@ -59,7 +59,11 @@ export default function Signal() {
           {s.ip}:{s.port}
         </h1>
         <div className="row sig-tags">
-          {s.secured ? <span className="lock mono">HTTPS</span> : <span className="insecure mono">HTTP</span>}
+          {s.secured ? (
+            <span className="lock mono" title="Captured over TLS (after any redirects)">HTTPS</span>
+          ) : (
+            <span className="insecure mono" title="Captured over cleartext HTTP (after any redirects)">HTTP</span>
+          )}
           <StatusBadge status={s.http_status} />
           {s.product && <span className="badge badge-mute">{s.product}</span>}
         </div>

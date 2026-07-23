@@ -6,6 +6,8 @@ import "./Search.css";
 
 type SecFilter = "any" | "https" | "http";
 
+const PAGE = 60;
+
 export default function Search() {
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -13,6 +15,8 @@ export default function Search() {
   const [sec, setSec] = useState<SecFilter>("any");
   const [status, setStatus] = useState<number | null>(null);
   const [tiles, setTiles] = useState<Tile[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [touched, setTouched] = useState(false);
 
@@ -26,9 +30,15 @@ export default function Search() {
     [debounced, port, sec, status]
   );
 
+  // Any query/filter change restarts pagination from the first page.
+  useEffect(() => {
+    setPage(0);
+  }, [debounced, port, sec, status]);
+
   useEffect(() => {
     if (!active) {
       setTiles([]);
+      setHasMore(false);
       return;
     }
     let alive = true;
@@ -40,15 +50,21 @@ export default function Search() {
         port: port ? Number(port) : undefined,
         status: status ?? undefined,
         secured: sec === "any" ? undefined : sec === "https",
-        limit: 90,
+        limit: PAGE,
+        offset: page * PAGE,
       })
-      .then((r) => alive && setTiles(r.entries))
-      .catch(() => alive && setTiles([]))
+      .then((r) => {
+        if (!alive) return;
+        // page 0 replaces (fresh query); later pages append (load more).
+        setTiles((prev) => (page === 0 ? r.entries : [...prev, ...r.entries]));
+        setHasMore(r.has_more);
+      })
+      .catch(() => alive && page === 0 && setTiles([]))
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
-  }, [debounced, port, sec, status, active]);
+  }, [debounced, port, sec, status, active, page]);
 
   const statuses: [string, number | null][] = [
     ["any", null],
@@ -71,6 +87,7 @@ export default function Search() {
         <input
           className="search-input mono"
           autoFocus
+          aria-label="Search the census by banner, product, whois, IP, or page text"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="banner, product, whois, IP, or page text…"
@@ -107,17 +124,31 @@ export default function Search() {
 
       {!active ? (
         <div className="empty">ENTER A QUERY OR PICK A FILTER</div>
-      ) : loading ? (
+      ) : loading && page === 0 ? (
         <div className="empty">◌ SCANNING…</div>
       ) : tiles.length === 0 && touched ? (
         <div className="empty">NO MATCHING SIGNALS</div>
       ) : (
         <>
-          <div className="page-sub mono search-count">{tiles.length} matches</div>
+          <div className="page-sub mono search-count">
+            {tiles.length}
+            {hasMore ? "+" : ""} matches
+          </div>
           <div className="signal-grid">
             {tiles.map((t) => (
               <SignalCard key={`${t.ip}:${t.port}`} t={t} />
             ))}
+          </div>
+          <div className="page-more">
+            {loading ? (
+              <span className="mono dim">◌ scanning…</span>
+            ) : hasMore ? (
+              <button className="btn" onClick={() => setPage((p) => p + 1)}>
+                load more ↓
+              </button>
+            ) : (
+              tiles.length > 0 && <span className="mono dim">— end of results —</span>
+            )}
           </div>
         </>
       )}

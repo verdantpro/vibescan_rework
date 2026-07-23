@@ -49,6 +49,11 @@ type Config struct {
 	// Read-API tuning.
 	AggMaxTimeMS int
 	MaxGallery   int
+
+	// Per-IP rate limit for the public /api/v2 read endpoints. RPS <= 0 disables
+	// limiting; Burst is the bucket capacity (short spikes allowed).
+	ReadRateRPS   float64
+	ReadRateBurst float64
 }
 
 // trueValues mirrors common/transport.py:_TRUE_VALUES.
@@ -114,6 +119,18 @@ func envInt(name string, def int) int {
 	return n
 }
 
+func envFloat(name string, def float64) float64 {
+	v := strings.TrimSpace(os.Getenv(name))
+	if v == "" {
+		return def
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return def
+	}
+	return f
+}
+
 // envStrAny returns the first non-empty of the named vars, else def. Used so the
 // object-storage settings accept both S3_* (AWS) and R2_* (Cloudflare) names.
 func envStrAny(def string, names ...string) string {
@@ -168,6 +185,9 @@ func Load() *Config {
 		IngestBatchSize: envInt("VIBESCAN_INGEST_BATCH_SIZE", 10),
 		AggMaxTimeMS:    envInt("MONGO_AGG_MAX_TIME_MS", 7000),
 		MaxGallery:      500,
+
+		ReadRateRPS:   envFloat("VIBESCAN_READ_RATE_RPS", 10),
+		ReadRateBurst: envFloat("VIBESCAN_READ_RATE_BURST", 20),
 	}
 
 	// Clamp ingest batch size to the same 1..50 window as the Python server.

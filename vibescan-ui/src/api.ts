@@ -1,7 +1,11 @@
 // Typed client for the VibeScan v2 read API.
 
+// In production the UI is served same-origin by the Go binary, so an unset base
+// means relative /api URLs. Only local dev falls back to the collector's port —
+// this way a prod build without .env.production can never point at localhost.
 export const API_BASE =
-  (import.meta.env.VITE_API_BASE as string | undefined) ?? "http://127.0.0.1:8000";
+  (import.meta.env.VITE_API_BASE as string | undefined) ??
+  (import.meta.env.DEV ? "http://127.0.0.1:8000" : "");
 
 export interface Geo {
   ip: string;
@@ -91,6 +95,13 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// Short-lived cache for stats: the all-time snapshot is requested by both the
+// TopBar and the Console on first paint — this collapses those (and any rapid
+// range toggling) into a single in-flight request per range. The server also
+// caches for 60s; 30s here just avoids duplicate client round-trips.
+const STATS_TTL_MS = 30_000;
+const statsCache = new Map<number, { at: number; p: Promise<Stats> }>();
+
 export const api = {
   gallery: (limit = 60, offset = 0) =>
     get<ListResponse>(`/api/v2/gallery?limit=${limit}&offset=${offset}`),
@@ -107,10 +118,20 @@ export const api = {
     return get<ListResponse>(`/api/v2/search?${q.toString()}`);
   },
 
-  stats: (timeRange = 24) => get<Stats>(`/api/v2/stats?time_range=${timeRange}`),
+  stats: (timeRange = 24): Promise<Stats> => {
+    const hit = statsCache.get(timeRange);
+    if (hit && Date.now() - hit.at < STATS_TTL_MS) return hit.p;
+    const p = get<Stats>(`/api/v2/stats?time_range=${timeRange}`).catch((e) => {
+      statsCache.delete(timeRange); // let a failed fetch be retried immediately
+      throw e;
+    });
+    statsCache.set(timeRange, { at: Date.now(), p });
+    return p;
+  },
 
   randomCapture: () => get<RandomCapture>(`/api/v2/random-capture`),
 
-  signal: (ip: string, port: number | string) =>
-    get<SignalDetail>(`/api/v2/services/${ip}/${port}`),
+  // brief omits the heavy page-source fulltext (the live console never shows it).
+  signal: (ip: string, port: number | string, opts?: { brief?: boolean }) =>
+    get<SignalDetail>(`/api/v2/services/${ip}/${port}${opts?.brief ? "?brief=1" : ""}`),
 };

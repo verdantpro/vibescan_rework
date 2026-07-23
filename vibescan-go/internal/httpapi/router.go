@@ -27,11 +27,15 @@ type Server struct {
 	blacklist *collector.BlacklistCache
 	store     *store.Mongo
 	geo       *geo.Resolver // optional; enriches tiles when Mongo docs lack geoip
+	limiter   *rateLimiter
 }
 
 // NewServer builds the collector HTTP server. geo may be nil (lookups no-op).
 func NewServer(cfg *config.Config, ing *collector.Ingestor, bl *collector.BlacklistCache, st *store.Mongo, geoResolver *geo.Resolver) *Server {
-	return &Server{cfg: cfg, ingestor: ing, blacklist: bl, store: st, geo: geoResolver}
+	return &Server{
+		cfg: cfg, ingestor: ing, blacklist: bl, store: st, geo: geoResolver,
+		limiter: newRateLimiter(cfg.ReadRateRPS, cfg.ReadRateBurst),
+	}
 }
 
 // Handler returns the configured http.Handler (Go 1.22+ method-pattern mux).
@@ -61,7 +65,23 @@ func (s *Server) Handler() http.Handler {
 	// Embedded SPA (catch-all; the /api patterns above win by specificity).
 	mux.Handle("/", web.Handler())
 
-	return withCORS(mux)
+	return withCORS(s.withRateLimit(mux))
+}
+
+// withRateLimit throttles the public read APIs (/api/v2/*) per client IP. Other
+// routes — ingest, health, blacklist, the SPA — pass through untouched.
+func (s *Server) withRateLimit(next http.Handler) http.Handler {
+	if !s.limiter.enabled() {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/v2/") && !s.limiter.allow(clientIP(r)) {
+			w.Header().Set("Retry-After", "1")
+			writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": "rate limited"})
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // withCORS allows a separately-hosted UI to call the read APIs from the browser.

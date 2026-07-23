@@ -106,17 +106,23 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 	offset := clampInt(queryInt(r, "offset", 0), 0, 1_000_000)
 	screensOnly := queryBool(r, "with_screenshots_only", true)
 
+	// Over-fetch one row so has_more reflects whether a real next page exists,
+	// rather than guessing from a full page (the gallery's per-/24 dedup can
+	// return exactly `limit` on the final page).
 	docs, err := s.store.Gallery(r.Context(), store.ListOpts{
-		Limit: limit, Offset: offset, ScreensOnly: screensOnly, MaxTimeMS: s.cfg.AggMaxTimeMS,
+		Limit: limit + 1, Offset: offset, ScreensOnly: screensOnly, MaxTimeMS: s.cfg.AggMaxTimeMS,
 	})
 	if err != nil {
 		s.readError(w, err)
 		return
 	}
-	entries := s.toTiles(docs)
+	hasMore := len(docs) > limit
+	if hasMore {
+		docs = docs[:limit]
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"entries":  entries,
-		"has_more": len(entries) >= limit,
+		"entries":  s.toTiles(docs),
+		"has_more": hasMore,
 	})
 }
 
@@ -125,7 +131,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	offset := clampInt(queryInt(r, "offset", 0), 0, 1_000_000)
 
 	opts := store.ListOpts{
-		Limit: limit, Offset: offset, MaxTimeMS: s.cfg.AggMaxTimeMS,
+		Limit: limit + 1, Offset: offset, MaxTimeMS: s.cfg.AggMaxTimeMS,
 		Query:   strings.TrimSpace(r.URL.Query().Get("q")),
 		Product: strings.TrimSpace(r.URL.Query().Get("product")),
 	}
@@ -149,10 +155,13 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		s.readError(w, err)
 		return
 	}
-	entries := s.toTiles(docs)
+	hasMore := len(docs) > limit
+	if hasMore {
+		docs = docs[:limit]
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"entries":  entries,
-		"has_more": len(entries) >= limit,
+		"entries":  s.toTiles(docs),
+		"has_more": hasMore,
 		"query":    opts.Query,
 	})
 }
@@ -164,7 +173,8 @@ func (s *Server) handleServiceDetail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid ip/port", http.StatusBadRequest)
 		return
 	}
-	doc, err := s.store.ServiceDetail(r.Context(), ipInt, port)
+	brief := queryBool(r, "brief", false)
+	doc, err := s.store.ServiceDetail(r.Context(), ipInt, port, brief)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		http.Error(w, "not found", http.StatusNotFound)
 		return

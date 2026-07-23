@@ -15,17 +15,30 @@ export interface MapPoint {
   insecure: boolean;
 }
 
+// Fetch + parse the world atlas once per session, shared across every mount so
+// SPA navigation back to the console doesn't re-download the ~107 KB topojson.
+let landPromise: Promise<FeatureCollection<Geometry>> | null = null;
+function loadLand(): Promise<FeatureCollection<Geometry>> {
+  if (!landPromise) {
+    landPromise = fetch("/world-110m.json")
+      .then((r) => r.json())
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((topo: any) => feature(topo, topo.objects.countries) as unknown as FeatureCollection<Geometry>)
+      .catch((e) => {
+        landPromise = null; // allow a later retry after a transient failure
+        throw e;
+      });
+  }
+  return landPromise;
+}
+
 export default function WorldMap({ points }: { points: MapPoint[] }) {
   const [land, setLand] = useState<FeatureCollection<Geometry> | null>(null);
 
   useEffect(() => {
     let alive = true;
-    fetch("/world-110m.json")
-      .then((r) => r.json())
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .then((topo: any) => {
-        if (alive) setLand(feature(topo, topo.objects.countries) as unknown as FeatureCollection<Geometry>);
-      })
+    loadLand()
+      .then((fc) => alive && setLand(fc))
       .catch(() => {});
     return () => {
       alive = false;

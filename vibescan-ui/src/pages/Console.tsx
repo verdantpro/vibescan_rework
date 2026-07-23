@@ -32,7 +32,7 @@ export default function Console() {
         ip = pick.ip;
         port = pick.port;
       }
-      const d = await api.signal(ip, port);
+      const d = await api.signal(ip, port, { brief: true });
       setDetail(d);
     } catch {
       // No captures yet, or one vanished — leave prior signal on screen.

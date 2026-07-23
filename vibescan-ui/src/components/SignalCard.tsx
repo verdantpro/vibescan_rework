@@ -21,7 +21,11 @@ export default function SignalCard({ t }: { t: Tile }) {
         <div className="row spread">
           <span className="mono card-product">{t.product || "unknown"}</span>
           <span className="row" style={{ gap: 6 }}>
-            {t.secured ? <span className="lock">HTTPS</span> : <span className="insecure">HTTP</span>}
+            {t.secured ? (
+              <span className="lock" title="Captured over TLS (after any redirects)">HTTPS</span>
+            ) : (
+              <span className="insecure" title="Captured over cleartext HTTP (after any redirects)">HTTP</span>
+            )}
             <StatusBadge status={t.http_status} />
           </span>
         </div>

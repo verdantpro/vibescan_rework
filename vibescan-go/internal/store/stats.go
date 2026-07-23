@@ -67,13 +67,17 @@ type timeRow struct {
 	Count  int       `bson:"count"`
 }
 
-type statsCache struct {
-	mu   sync.Mutex
+type statsEntry struct {
 	at   time.Time
-	data map[int]Stats
+	data Stats
 }
 
-var statsMemo = &statsCache{data: map[int]Stats{}}
+type statsCache struct {
+	mu   sync.Mutex
+	data map[int]statsEntry
+}
+
+var statsMemo = &statsCache{data: map[int]statsEntry{}}
 
 const statsTTL = 60 * time.Second
 
@@ -82,9 +86,9 @@ const statsTTL = 60 * time.Second
 // Python /stats composite (services_by_port, status_code_counts, etc.).
 func (m *Mongo) StatsAggregate(ctx context.Context, timeRangeHours, maxTimeMS int) (Stats, error) {
 	statsMemo.mu.Lock()
-	if cached, ok := statsMemo.data[timeRangeHours]; ok && time.Since(statsMemo.at) < statsTTL {
+	if cached, ok := statsMemo.data[timeRangeHours]; ok && time.Since(cached.at) < statsTTL {
 		statsMemo.mu.Unlock()
-		return cached, nil
+		return cached.data, nil
 	}
 	statsMemo.mu.Unlock()
 
@@ -242,8 +246,7 @@ func (m *Mongo) StatsAggregate(ctx context.Context, timeRangeHours, maxTimeMS in
 	}
 
 	statsMemo.mu.Lock()
-	statsMemo.data[timeRangeHours] = out
-	statsMemo.at = time.Now()
+	statsMemo.data[timeRangeHours] = statsEntry{at: time.Now(), data: out}
 	statsMemo.mu.Unlock()
 
 	return out, nil

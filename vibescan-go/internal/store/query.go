@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"regexp"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -187,48 +189,87 @@ func (m *Mongo) Gallery(ctx context.Context, o ListOpts) ([]ServiceDoc, error) {
 	return m.aggregateDocs(ctx, galleryPipeline(o.Offset, o.Limit), o.MaxTimeMS)
 }
 
+// maxQueryLen bounds the free-text query so a pathological input can't blow up
+// the index scan. 128 chars is far more than any real banner/product term.
+const maxQueryLen = 128
+
 // Search returns services matching a free-text query and/or filters.
+//
+// Free-text matching uses a MongoDB $text index (banner/whois/cert_cn/fulltext),
+// except IP-like queries (containing a dot), which route to an anchored, escaped
+// ip_str prefix match — $text tokenizes on "." so it can't match dotted IPs, and
+// an anchored literal regex is both index-friendly and ReDoS-proof.
 func (m *Mongo) Search(ctx context.Context, o ListOpts) ([]ServiceDoc, error) {
-	and := bson.A{}
-	if o.Query != "" {
-		rx := bson.D{{Key: "$regex", Value: o.Query}, {Key: "$options", Value: "i"}}
-		and = append(and, bson.D{{Key: "$or", Value: bson.A{
-			bson.D{{Key: "banner", Value: rx}},
-			bson.D{{Key: "whois", Value: rx}},
-			bson.D{{Key: "ip_str", Value: rx}},
-			bson.D{{Key: "cert_cn", Value: rx}},
-			bson.D{{Key: "fulltext", Value: rx}},
-		}}})
+	// $text must sit at the top level of the match document (it cannot be nested
+	// in $and/$or), so filters are merged as sibling keys — an implicit AND.
+	match := bson.D{}
+	add := func(key string, val any) { match = append(match, bson.E{Key: key, Value: val}) }
+
+	q := strings.TrimSpace(o.Query)
+	if len(q) > maxQueryLen {
+		q = q[:maxQueryLen]
+	}
+	if q != "" {
+		if isIPLike(q) {
+			add("ip_str", bson.D{{Key: "$regex", Value: "^" + regexp.QuoteMeta(q)}})
+		} else {
+			add("$text", bson.D{{Key: "$search", Value: q}})
+		}
 	}
 	if o.Product != "" {
-		and = append(and, bson.D{{Key: "banner", Value: bson.D{
-			{Key: "$regex", Value: o.Product}, {Key: "$options", Value: "i"},
-		}}})
+		p := o.Product
+		if len(p) > maxQueryLen {
+			p = p[:maxQueryLen]
+		}
+		// Escaped literal substring; anchoring isn't wanted here (product may be
+		// mid-banner), but QuoteMeta keeps it ReDoS-proof.
+		add("banner", bson.D{{Key: "$regex", Value: regexp.QuoteMeta(p)}, {Key: "$options", Value: "i"}})
 	}
 	if o.Port != nil {
-		and = append(and, bson.D{{Key: "port", Value: *o.Port}})
+		add("port", *o.Port)
 	}
 	if o.Secured != nil {
-		and = append(and, bson.D{{Key: "secured", Value: *o.Secured}})
+		add("secured", *o.Secured)
 	}
 	if o.StatusCode != nil {
-		and = append(and, bson.D{{Key: "http_status", Value: *o.StatusCode}})
+		add("http_status", *o.StatusCode)
 	}
 	if o.ScreensOnly {
-		and = append(and, bson.D(hasCaptureMatch))
+		match = append(match, hasCaptureMatch...)
 	}
 
-	match := bson.D{}
-	if len(and) > 0 {
-		match = bson.D{{Key: "$and", Value: and}}
-	}
 	return m.aggregateDocs(ctx, listPipeline(match, o.Offset, o.Limit), o.MaxTimeMS)
 }
 
-// ServiceDetail returns a single service document (including fulltext).
-func (m *Mongo) ServiceDetail(ctx context.Context, ipInt int64, port int) (*ServiceDoc, error) {
+// isIPLike reports whether q looks like an IPv4 address or a leading fragment of
+// one (digits and dots, at least one dot) so it can be matched as an ip_str
+// prefix rather than tokenized by the text index.
+func isIPLike(q string) bool {
+	dot := false
+	for _, r := range q {
+		switch {
+		case r == '.':
+			dot = true
+		case r >= '0' && r <= '9':
+		default:
+			return false
+		}
+	}
+	return dot
+}
+
+// ServiceDetail returns a single service document. When brief is true the heavy
+// fulltext field is projected out (HasFulltext is still reported) — used by the
+// live console, which renders telemetry but never the page source.
+func (m *Mongo) ServiceDetail(ctx context.Context, ipInt int64, port int, brief bool) (*ServiceDoc, error) {
+	opts := options.FindOne()
+	if brief {
+		// Drop the heavy field entirely; the brief caller (console) doesn't use
+		// fulltext or has_fulltext, so no extra round-trip to recompute the flag.
+		opts.SetProjection(bson.M{"fulltext": 0})
+	}
 	var doc ServiceDoc
-	err := m.results.FindOne(ctx, bson.M{"ip": ipInt, "port": port}).Decode(&doc)
+	err := m.results.FindOne(ctx, bson.M{"ip": ipInt, "port": port}, opts).Decode(&doc)
 	if err != nil {
 		return nil, err
 	}

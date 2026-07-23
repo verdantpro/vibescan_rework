@@ -155,8 +155,15 @@ public URL (S3/CloudFront or R2) when configured, otherwise `/api/v2/image/...`.
 ### Deferred (intentionally) in the read layer
 
 - **Stats are computed live** over the requested window (bounded `$facet` +
-  `maxTimeMS` + 60s cache), not from Redis/hourly rollups.
-- **Search is Mongo regex + filters**, not Atlas Search / Online Archive.
+  `maxTimeMS` + 60s cache, per-range), not from Redis/hourly rollups.
+- **Search uses a MongoDB `$text` index** (weighted over banner/whois/cert_cn/
+  fulltext) for free text; IP-like queries (containing a dot) route to an
+  anchored, escaped `ip_str` prefix match instead (the text tokenizer splits on
+  `.`). Not Atlas Search / Online Archive. Input is length-capped and
+  regex-escaped, so no ReDoS surface.
+- The public `/api/v2/*` endpoints are rate-limited per client IP (in-process
+  token bucket; `VIBESCAN_READ_RATE_RPS` / `VIBESCAN_READ_RATE_BURST`, RPS ≤ 0
+  disables).
 - Votes, tags, favorites, auth, and live SSE streams are not in this layer yet.
 
 ## Agent
