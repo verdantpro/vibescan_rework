@@ -1,10 +1,12 @@
 import { Route, Routes } from "react-router-dom";
 import TopBar from "./components/TopBar";
+import Footer from "./components/Footer";
 import Console from "./pages/Console";
 import Feed from "./pages/Feed";
 import Search from "./pages/Search";
 import Stats from "./pages/Stats";
 import Signal from "./pages/Signal";
+import About from "./pages/About";
 
 export default function App() {
   return (
@@ -17,8 +19,10 @@ export default function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/signal/:ip/:port" element={<Signal />} />
+          <Route path="/about" element={<About />} />
         </Routes>
       </main>
+      <Footer />
     </>
   );
 }
