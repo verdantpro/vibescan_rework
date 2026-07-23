@@ -76,7 +76,10 @@ export default function WorldMap({ points }: { points: MapPoint[] }) {
             const color = p.insecure ? "var(--red)" : "var(--cyan)";
             return (
               <g key={`${p.ip}:${p.port}:${i}`} transform={`translate(${x},${y})`}>
-                <circle className="wm-ping" r="5" style={{ fill: color, transformOrigin: "center" }} />
+                {/* Soft halo that blinks in place (opacity only — no transform,
+                    so it can't drift off its coordinate). Slight per-point delay
+                    keeps them from all pulsing in lockstep. */}
+                <circle className="wm-ping" r="4" style={{ fill: color, animationDelay: `${(i % 7) * 0.3}s` }} />
                 <circle r="1.8" style={{ fill: color }} />
               </g>
             );

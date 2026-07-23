@@ -160,11 +160,6 @@ img { max-width: 100%; display: block; }
   88% { opacity: 1; }
   100% { transform: translateY(1100%); opacity: 0; }
 }
-@keyframes ping {
-  0% { transform: scale(0.4); opacity: 0.9; }
-  70% { transform: scale(2.4); opacity: 0; }
-  100% { opacity: 0; }
-}
 @keyframes glitchIn {
   0% { clip-path: inset(0 0 100% 0); filter: hue-rotate(80deg) saturate(2); opacity: 0.4; }
   40% { clip-path: inset(0 0 0 0); }
