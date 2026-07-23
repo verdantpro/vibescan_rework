@@ -46,7 +46,12 @@
 
 * { box-sizing: border-box; }
 
-html, body, #root { height: 100%; }
+html, body { height: 100%; }
+
+/* Sticky footer: the app column is at least full height and <main> grows to
+   fill, so the footer anchors to the bottom even on short pages. */
+#root { min-height: 100%; display: flex; flex-direction: column; }
+main { flex: 1 0 auto; }
 
 body {
   margin: 0;
