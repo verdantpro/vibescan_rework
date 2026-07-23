@@ -14,6 +14,7 @@ import (
 
 	"github.com/vibescan/vibescan-go/internal/collector"
 	"github.com/vibescan/vibescan-go/internal/config"
+	"github.com/vibescan/vibescan-go/internal/enrich"
 	"github.com/vibescan/vibescan-go/internal/geo"
 	"github.com/vibescan/vibescan-go/internal/httpapi"
 	"github.com/vibescan/vibescan-go/internal/store"
@@ -67,9 +68,26 @@ func main() {
 	}
 	go buffer.Run(ctx)
 
+	// Host enrichment (Shodan InternetDB free; paid Host API on-demand if keyed).
+	var enricher *enrich.Enricher
+	if cfg.EnrichEnabled {
+		enricher = enrich.NewEnricher(mongoStore, cfg.ShodanAPIKey,
+			time.Duration(cfg.EnrichTTLHours)*time.Hour, cfg.EnrichWorkerRPS)
+		if cfg.ShodanAPIKey != "" {
+			log.Printf("[collector] enrichment enabled (InternetDB + Shodan Host API)")
+		} else {
+			log.Printf("[collector] enrichment enabled (InternetDB only — set SHODAN_API_KEY for org/ASN/product)")
+		}
+		if cfg.EnrichWorkerEnabled {
+			worker := enrich.NewWorker(enricher, mongoStore,
+				time.Duration(cfg.EnrichTTLHours)*time.Hour, cfg.EnrichWorkerBatch, cfg.Debug)
+			go worker.Run(ctx)
+		}
+	}
+
 	ingestor := collector.NewIngestor(cfg, mongoStore, r2, geoResolver, buffer)
 	blacklist := collector.NewBlacklistCache(mongoStore)
-	srv := httpapi.NewServer(cfg, ingestor, blacklist, mongoStore, geoResolver)
+	srv := httpapi.NewServer(cfg, ingestor, blacklist, mongoStore, geoResolver, enricher)
 
 	httpServer := &http.Server{
 		Addr:              cfg.Addr,

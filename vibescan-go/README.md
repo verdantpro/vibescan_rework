@@ -143,6 +143,7 @@ the collector). Keyed by `ip/port` rather than Mongo `_id`.
 | `GET /api/v2/gallery?limit=&offset=&with_screenshots_only=&sort=` | Captured tiles; `sort=recent` = strict newest-first (any status), else the ranked feed |
 | `GET /api/v2/search?q=&port=&status=&secured=&product=&limit=&offset=` | Filtered / `$text` free-text search |
 | `GET /api/v2/services/{ip}/{port}?brief=` | Single service detail (incl. `fulltext`); `brief=1` omits `fulltext` |
+| `GET /api/v2/enrich/{ip}` | Shodan / InternetDB cross-reference (ports, CVEs, tags, org); cached |
 | `GET /api/v2/stats?time_range=<hours>` | Windowed aggregate snapshot (one `$facet` pass, 60s cached) |
 | `GET /api/v2/random-capture` | One random landing-page tile (`$sample`) |
 | `GET /api/v2/image/{ip}/{port}` | Serves base64 captures; 302-redirects to object storage for `r2:` refs |
@@ -167,6 +168,15 @@ public URL (S3/CloudFront or R2) when configured, otherwise `/api/v2/image/...`.
 - The public `/api/v2/*` endpoints are rate-limited per client IP (in-process
   token bucket; `VIBESCAN_READ_RATE_RPS` / `VIBESCAN_READ_RATE_BURST`, RPS ≤ 0
   disables).
+- **Host enrichment** (`internal/enrich`): each captured IP is cross-referenced
+  against Shodan's free/keyless **InternetDB** (ports/CVEs/tags/hostnames) and,
+  on the Signal view only when `SHODAN_API_KEY` is set, the paid **Host API**
+  (org/ISP/ASN/product). Results are cached (in-memory + the `enrichment`
+  collection, `VIBESCAN_ENRICH_TTL_HOURS`) and throttled by a shared outbound
+  limiter. A background worker (`VIBESCAN_ENRICH_WORKER`) keeps recent hosts
+  enriched via InternetDB (free), denormalizing `vuln_count`/`shodan_tags` onto
+  results so tiles, `search?has_vulns=1&tag=`, and the Stats exposure facet work
+  census-wide. The API key never reaches the browser.
 - Votes, tags, favorites, auth, and live SSE streams are not in this layer yet.
 
 ## Agent

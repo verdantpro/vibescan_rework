@@ -25,10 +25,11 @@ type Config struct {
 	SharedKey string
 	PublicURL string
 
-	MongoURI            string
-	MongoDB             string
-	ResultsCollection   string
-	BlacklistCollection string
+	MongoURI             string
+	MongoDB              string
+	ResultsCollection    string
+	BlacklistCollection  string
+	EnrichmentCollection string
 
 	GeoIPPath string
 	BufferDir string
@@ -54,6 +55,15 @@ type Config struct {
 	// limiting; Burst is the bucket capacity (short spikes allowed).
 	ReadRateRPS   float64
 	ReadRateBurst float64
+
+	// Host enrichment (Shodan InternetDB, free/keyless; the paid Shodan Host API
+	// is used only on-demand when a key is set). Key stays server-side.
+	EnrichEnabled       bool
+	ShodanAPIKey        string
+	EnrichTTLHours      int     // durable cache freshness window
+	EnrichWorkerEnabled bool    // background worker enriches recent hosts (InternetDB only)
+	EnrichWorkerRPS     float64 // shared outbound rate to Shodan/InternetDB
+	EnrichWorkerBatch   int     // hosts enriched per worker tick
 }
 
 // trueValues mirrors common/transport.py:_TRUE_VALUES.
@@ -162,10 +172,11 @@ func Load() *Config {
 		SharedKey: envStr("VIBESCAN_SHARED_KEY", DefaultSharedKey),
 		PublicURL: envStr("VIBESCAN_PUBLIC_URL", DefaultPublicURL),
 
-		MongoURI:            envStr("MONGO_URI", "mongodb://localhost:27017"),
-		MongoDB:             envStr("MONGO_DB", "vibescan"),
-		ResultsCollection:   envStr("MONGO_COLLECTION", "results"),
-		BlacklistCollection: envStr("MONGO_COLLECTION_BLACKLIST", "cidr_blacklist"),
+		MongoURI:             envStr("MONGO_URI", "mongodb://localhost:27017"),
+		MongoDB:              envStr("MONGO_DB", "vibescan"),
+		ResultsCollection:    envStr("MONGO_COLLECTION", "results"),
+		BlacklistCollection:  envStr("MONGO_COLLECTION_BLACKLIST", "cidr_blacklist"),
+		EnrichmentCollection: envStr("MONGO_COLLECTION_ENRICHMENT", "enrichment"),
 
 		GeoIPPath: envStr("GEOLITE2_CITY_MMDB", "./GeoLite2-City.mmdb"),
 		BufferDir: envStr("VIBESCAN_BUFFER_DIR", "cache/server_buffer"),
@@ -188,6 +199,13 @@ func Load() *Config {
 
 		ReadRateRPS:   envFloat("VIBESCAN_READ_RATE_RPS", 10),
 		ReadRateBurst: envFloat("VIBESCAN_READ_RATE_BURST", 20),
+
+		EnrichEnabled:       envBool("VIBESCAN_ENRICH_ENABLED", true),
+		ShodanAPIKey:        envStr("SHODAN_API_KEY", ""),
+		EnrichTTLHours:      envInt("VIBESCAN_ENRICH_TTL_HOURS", 168),
+		EnrichWorkerEnabled: envBool("VIBESCAN_ENRICH_WORKER", true),
+		EnrichWorkerRPS:     envFloat("VIBESCAN_ENRICH_RPS", 1),
+		EnrichWorkerBatch:   envInt("VIBESCAN_ENRICH_BATCH", 20),
 	}
 
 	// Clamp ingest batch size to the same 1..50 window as the Python server.

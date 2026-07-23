@@ -37,6 +37,15 @@
   border-radius: 3px;
   backdrop-filter: blur(2px);
 }
+.card-vuln {
+  position: absolute; right: 8px; top: 8px;
+  font-size: 10.5px; padding: 2px 7px;
+  color: var(--alert);
+  background: rgba(15, 17, 20, 0.82);
+  border: 1px solid rgba(217, 83, 74, 0.5);
+  border-radius: 3px;
+  backdrop-filter: blur(2px);
+}
 .card-meta { padding: 10px 12px 12px; display: grid; gap: 6px; }
 .card-product { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%; }
 .card-sub { font-size: 11px; }

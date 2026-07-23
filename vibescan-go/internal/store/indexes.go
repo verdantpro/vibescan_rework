@@ -40,11 +40,30 @@ func (m *Mongo) EnsureIndexes(ctx context.Context) error {
 		},
 		// DOM-structure neighbor lookups (sparse: most docs may lack it).
 		{Keys: bson.D{{Key: "dom_hash", Value: 1}}, Options: options.Index().SetName("idx_dom_hash").SetSparse(true)},
+		// Enrichment worker queue + search filters over the denormalized summary.
+		{Keys: bson.D{{Key: "enriched_at", Value: 1}}, Options: options.Index().SetName("idx_enriched_at")},
+		{Keys: bson.D{{Key: "vuln_count", Value: 1}}, Options: options.Index().SetName("idx_vuln_count")},
+		{Keys: bson.D{{Key: "shodan_tags", Value: 1}}, Options: options.Index().SetName("idx_shodan_tags").SetSparse(true)},
 	}
 	if _, err := m.results.Indexes().CreateMany(ctx, models); err != nil {
 		return err
 	}
+	if err := m.ensureEnrichmentIndexes(ctx); err != nil {
+		return err
+	}
 	return m.ensureTextIndex(ctx)
+}
+
+// ensureEnrichmentIndexes indexes the durable enrichment cache collection.
+func (m *Mongo) ensureEnrichmentIndexes(ctx context.Context) error {
+	if m.enrichment == nil {
+		return nil
+	}
+	_, err := m.enrichment.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{Keys: bson.D{{Key: "ip_int", Value: 1}}, Options: options.Index().SetName("idx_enr_ip").SetUnique(true)},
+		{Keys: bson.D{{Key: "fetched_at", Value: 1}}, Options: options.Index().SetName("idx_enr_fetched")},
+	})
+	return err
 }
 
 // textIndexWeights defines the single free-text search index the /api/v2/search

@@ -15,6 +15,7 @@ export default function Search() {
   const [port, setPort] = useState("");
   const [sec, setSec] = useState<SecFilter>("any");
   const [status, setStatus] = useState<number | null>(null);
+  const [hasVulns, setHasVulns] = useState(false);
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -29,14 +30,14 @@ export default function Search() {
   }, [q]);
 
   const active = useMemo(
-    () => debounced !== "" || port !== "" || sec !== "any" || status !== null,
-    [debounced, port, sec, status]
+    () => debounced !== "" || port !== "" || sec !== "any" || status !== null || hasVulns,
+    [debounced, port, sec, status, hasVulns]
   );
 
   // Any query/filter change restarts pagination from the first page.
   useEffect(() => {
     setPage(0);
-  }, [debounced, port, sec, status]);
+  }, [debounced, port, sec, status, hasVulns]);
 
   useEffect(() => {
     if (!active) {
@@ -55,6 +56,7 @@ export default function Search() {
         port: port ? Number(port) : undefined,
         status: status ?? undefined,
         secured: sec === "any" ? undefined : sec === "https",
+        hasVulns: hasVulns || undefined,
         limit: PAGE,
         offset: page * PAGE,
       })
@@ -73,7 +75,7 @@ export default function Search() {
     return () => {
       alive = false;
     };
-  }, [debounced, port, sec, status, active, page, reloadKey]);
+  }, [debounced, port, sec, status, hasVulns, active, page, reloadKey]);
 
   const statuses: [string, number | null][] = [
     ["any", null],
@@ -143,6 +145,18 @@ export default function Search() {
                 {label}
               </button>
             ))}
+          </div>
+        </div>
+        <div className="filter-group">
+          <span className="filter-label mono">Exposure</span>
+          <div className="chips">
+            <button
+              className={`chip mono${hasVulns ? " on" : ""}`}
+              aria-pressed={hasVulns}
+              onClick={() => setHasVulns((v) => !v)}
+            >
+              has CVEs
+            </button>
           </div>
         </div>
       </div>

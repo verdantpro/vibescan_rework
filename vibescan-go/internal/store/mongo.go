@@ -33,9 +33,10 @@ type UpsertOp struct {
 // unreachable at startup the collections are nil and Available reports false;
 // the collector then buffers writes to disk.
 type Mongo struct {
-	client    *mongo.Client
-	results   *mongo.Collection
-	blacklist *mongo.Collection
+	client     *mongo.Client
+	results    *mongo.Collection
+	blacklist  *mongo.Collection
+	enrichment *mongo.Collection
 }
 
 // Connect dials MongoDB and pings it. It always returns a non-nil *Mongo; the
@@ -62,9 +63,10 @@ func Connect(ctx context.Context, cfg *config.Config) (*Mongo, error) {
 
 	db := client.Database(cfg.MongoDB)
 	return &Mongo{
-		client:    client,
-		results:   db.Collection(cfg.ResultsCollection),
-		blacklist: db.Collection(cfg.BlacklistCollection),
+		client:     client,
+		results:    db.Collection(cfg.ResultsCollection),
+		blacklist:  db.Collection(cfg.BlacklistCollection),
+		enrichment: db.Collection(cfg.EnrichmentCollection),
 	}, nil
 }
 

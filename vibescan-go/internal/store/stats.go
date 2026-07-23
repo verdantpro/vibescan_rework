@@ -23,6 +23,8 @@ type Stats struct {
 	TopBanners          map[string]int `json:"top_banners"`
 	SubmissionsByClient map[string]int `json:"submissions_by_client"`
 	SubmissionsOverTime map[string]int `json:"submissions_over_time"`
+	ExposedServices     int            `json:"exposed_services"` // services with >=1 known CVE
+	TopTags             map[string]int `json:"top_tags"`         // Shodan tags across enriched hosts
 }
 
 // StatsTotals holds the headline counts.
@@ -41,6 +43,8 @@ type facetResult struct {
 	Clients []kvStr      `bson:"clients"`
 	Times   []timeRow    `bson:"times"`
 	Total   []countOnly  `bson:"total"`
+	Exposed []countOnly  `bson:"exposed"`
+	Tags    []kv         `bson:"tags"`
 }
 
 type kv struct {
@@ -176,6 +180,17 @@ func (m *Mongo) StatsAggregate(ctx context.Context, timeRangeHours, maxTimeMS in
 		{Key: "total", Value: bson.A{
 			bson.D{{Key: "$count", Value: "count"}},
 		}},
+		// Enrichment exposure: services with >=1 known CVE, and top Shodan tags.
+		{Key: "exposed", Value: bson.A{
+			bson.D{{Key: "$match", Value: bson.D{{Key: "vuln_count", Value: bson.D{{Key: "$gt", Value: 0}}}}}},
+			bson.D{{Key: "$count", Value: "count"}},
+		}},
+		{Key: "tags", Value: bson.A{
+			bson.D{{Key: "$unwind", Value: "$shodan_tags"}},
+			bson.D{{Key: "$group", Value: bson.D{{Key: "_id", Value: "$shodan_tags"}, {Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}}}}},
+			bson.D{{Key: "$sort", Value: bson.D{{Key: "count", Value: -1}}}},
+			bson.D{{Key: "$limit", Value: 15}},
+		}},
 	}
 
 	pipeline := mongo.Pipeline{
@@ -206,6 +221,7 @@ func (m *Mongo) StatsAggregate(ctx context.Context, timeRangeHours, maxTimeMS in
 		TopBanners:          map[string]int{},
 		SubmissionsByClient: map[string]int{},
 		SubmissionsOverTime: map[string]int{},
+		TopTags:             map[string]int{},
 	}
 	if len(rows) == 1 {
 		f := rows[0]
@@ -242,6 +258,12 @@ func (m *Mongo) StatsAggregate(ctx context.Context, timeRangeHours, maxTimeMS in
 		}
 		if len(f.Total) == 1 {
 			out.Totals.Services = f.Total[0].Count
+		}
+		if len(f.Exposed) == 1 {
+			out.ExposedServices = f.Exposed[0].Count
+		}
+		for _, t := range f.Tags {
+			out.TopTags[t.ID] = t.Count
 		}
 	}
 

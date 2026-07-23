@@ -119,6 +119,11 @@ export default function StatsPage() {
                 {insecure.toLocaleString()} insecure · {secure.toLocaleString()} https
               </div>
             </div>
+            <div className="tile panel hud">
+              <div className="tile-label eyebrow">Exposed</div>
+              <div className="tile-num display insecure">{s.exposed_services.toLocaleString()}</div>
+              <div className="tile-sub mono dim">services with ≥1 known CVE · via Shodan</div>
+            </div>
           </div>
 
           <div className="stats-grid">
@@ -145,6 +150,11 @@ export default function StatsPage() {
             <section className="panel panel-pad">
               <div className="eyebrow chart-head">◊ Top servers</div>
               <BarList data={s.top_banners} color="var(--violet)" limit={8} />
+            </section>
+
+            <section className="panel panel-pad">
+              <div className="eyebrow chart-head">◊ Shodan tags</div>
+              <BarList data={s.top_tags} color="var(--accent-soft)" limit={8} />
             </section>
 
             <section className="panel panel-pad stats-time">

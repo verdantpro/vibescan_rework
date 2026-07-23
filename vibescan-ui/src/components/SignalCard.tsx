@@ -15,6 +15,11 @@ export default function SignalCard({ t }: { t: Tile }) {
         <span className="card-callsign mono">
           {t.ip}:{t.port}
         </span>
+        {t.vuln_count ? (
+          <span className="card-vuln mono" title={`${t.vuln_count} known CVE${t.vuln_count > 1 ? "s" : ""} (Shodan)`}>
+            ⚠ {t.vuln_count} CVE{t.vuln_count > 1 ? "s" : ""}
+          </span>
+        ) : null}
       </div>
       <div className="card-meta">
         <div className="row spread">

@@ -11,6 +11,7 @@ import (
 
 	"github.com/vibescan/vibescan-go/internal/collector"
 	"github.com/vibescan/vibescan-go/internal/config"
+	"github.com/vibescan/vibescan-go/internal/enrich"
 	"github.com/vibescan/vibescan-go/internal/geo"
 	"github.com/vibescan/vibescan-go/internal/store"
 	"github.com/vibescan/vibescan-go/internal/transport"
@@ -26,14 +27,15 @@ type Server struct {
 	ingestor  *collector.Ingestor
 	blacklist *collector.BlacklistCache
 	store     *store.Mongo
-	geo       *geo.Resolver // optional; enriches tiles when Mongo docs lack geoip
+	geo       *geo.Resolver    // optional; enriches tiles when Mongo docs lack geoip
+	enricher  *enrich.Enricher // optional; Shodan/InternetDB host enrichment
 	limiter   *rateLimiter
 }
 
-// NewServer builds the collector HTTP server. geo may be nil (lookups no-op).
-func NewServer(cfg *config.Config, ing *collector.Ingestor, bl *collector.BlacklistCache, st *store.Mongo, geoResolver *geo.Resolver) *Server {
+// NewServer builds the collector HTTP server. geo and enricher may be nil.
+func NewServer(cfg *config.Config, ing *collector.Ingestor, bl *collector.BlacklistCache, st *store.Mongo, geoResolver *geo.Resolver, enricher *enrich.Enricher) *Server {
 	return &Server{
-		cfg: cfg, ingestor: ing, blacklist: bl, store: st, geo: geoResolver,
+		cfg: cfg, ingestor: ing, blacklist: bl, store: st, geo: geoResolver, enricher: enricher,
 		limiter: newRateLimiter(cfg.ReadRateRPS, cfg.ReadRateBurst),
 	}
 }
@@ -55,6 +57,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v2/random-capture", s.handleRandomCapture)
 	mux.HandleFunc("GET /api/v2/services/{ip}/{port}", s.handleServiceDetail)
 	mux.HandleFunc("GET /api/v2/image/{ip}/{port}", s.handleImage)
+	mux.HandleFunc("GET /api/v2/enrich/{ip}", s.handleEnrich)
 
 	// Unmatched /api/* → JSON 404 (more specific than the SPA catch-all, so a
 	// mistyped API path never returns the HTML shell).

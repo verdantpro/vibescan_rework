@@ -41,6 +41,10 @@ type ServiceDoc struct {
 	Timestamp       time.Time          `bson:"timestamp"`
 	GeoIP           *geo.GeoIP         `bson:"geoip"`
 	LandingImage    *LandingImage      `bson:"landing_image"`
+	// Denormalized enrichment summary (written by the enrichment worker).
+	VulnCount  int      `bson:"vuln_count"`
+	ShodanTags []string `bson:"shodan_tags"`
+	ExtraPorts []int    `bson:"extra_ports"`
 }
 
 // LandingImage mirrors the embedded landing_image sub-document.
@@ -67,6 +71,9 @@ type ListOpts struct {
 	// Recent selects the pure-recency gallery ("Latest signals"): screenshots
 	// only, newest first, any status, no per-/24 dedup or 200-first ranking.
 	Recent bool
+	// Enrichment filters (from the denormalized summary).
+	HasVulns *bool
+	Tag      string
 }
 
 // hasCaptureMatch is the aggregation match ensuring a real (non-error) capture,
@@ -243,6 +250,16 @@ func (m *Mongo) Search(ctx context.Context, o ListOpts) ([]ServiceDoc, error) {
 	}
 	if o.StatusCode != nil {
 		add("http_status", *o.StatusCode)
+	}
+	if o.HasVulns != nil {
+		if *o.HasVulns {
+			add("vuln_count", bson.D{{Key: "$gt", Value: 0}})
+		} else {
+			add("vuln_count", bson.D{{Key: "$in", Value: bson.A{0, nil}}})
+		}
+	}
+	if o.Tag != "" {
+		add("shodan_tags", o.Tag)
 	}
 	if o.ScreensOnly {
 		match = append(match, hasCaptureMatch...)

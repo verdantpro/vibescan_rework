@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, imageURL, type SignalDetail } from "../api";
+import CrossReference from "../components/CrossReference";
 import "./Signal.css";
 
 function Note({
@@ -118,6 +119,8 @@ export default function Signal() {
             </dl>
           </aside>
         </div>
+
+        <CrossReference ip={s.ip} />
 
         <section className="fr-sec">
           <div className="fr-sec-h">Service banner</div>

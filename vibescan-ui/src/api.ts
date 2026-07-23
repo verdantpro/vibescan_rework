@@ -35,6 +35,27 @@ export interface Tile {
   cert_cn?: string;
   updated_at: string;
   geo?: Geo | null;
+  vuln_count?: number;
+  tags?: string[];
+  extra_ports?: number[];
+}
+
+export interface Enrichment {
+  ip: string;
+  ports: number[];
+  vulns: string[];
+  tags: string[];
+  hostnames: string[];
+  cpes: string[] | null;
+  org?: string;
+  isp?: string;
+  asn?: string;
+  country?: string;
+  city?: string;
+  products?: string[];
+  last_seen?: string;
+  sources: string[];
+  fetched_at: string;
 }
 
 export interface ListResponse {
@@ -70,6 +91,8 @@ export interface Stats {
   top_banners: Record<string, number>;
   submissions_by_client: Record<string, number>;
   submissions_over_time: Record<string, number>;
+  exposed_services: number;
+  top_tags: Record<string, number>;
 }
 
 export interface SearchParams {
@@ -78,6 +101,8 @@ export interface SearchParams {
   status?: number;
   secured?: boolean;
   product?: string;
+  hasVulns?: boolean;
+  tag?: string;
   limit?: number;
   offset?: number;
 }
@@ -152,6 +177,8 @@ export const api = {
     if (p.status != null) q.set("status", String(p.status));
     if (p.secured != null) q.set("secured", String(p.secured));
     if (p.product) q.set("product", p.product);
+    if (p.hasVulns) q.set("has_vulns", "1");
+    if (p.tag) q.set("tag", p.tag);
     q.set("limit", String(p.limit ?? 60));
     q.set("offset", String(p.offset ?? 0));
     return get<ListResponse>(`/api/v2/search?${q.toString()}`);
@@ -173,4 +200,7 @@ export const api = {
   // brief omits the heavy page-source fulltext (the live console never shows it).
   signal: (ip: string, port: number | string, opts?: { brief?: boolean }) =>
     get<SignalDetail>(`/api/v2/services/${ip}/${port}${opts?.brief ? "?brief=1" : ""}`),
+
+  // Shodan / InternetDB cross-reference for a host (server-side proxied + cached).
+  enrich: (ip: string) => get<Enrichment>(`/api/v2/enrich/${ip}`),
 };

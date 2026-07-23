@@ -71,4 +71,8 @@ the embedded app uses relative URLs even without an env file.
 - The `/about` page states the moderation / opt-out / takedown posture and points
   to the abuse contact; keep it in sync with what the collector actually enforces
   (e.g. the agent CIDR blacklist).
+- The Signal page's **Cross-reference** section (`components/CrossReference`)
+  lazy-loads `/api/v2/enrich/{ip}` (Shodan / InternetDB) for other open ports,
+  CVEs, tags, and ownership; `SignalCard` shows a `⚠ N CVEs` badge and Search has
+  a "has CVEs" filter, both fed by the collector's denormalized enrichment fields.
 - Deploy of the combined stack: **[`../vibescan-go/deploy/DEPLOY.md`](../vibescan-go/deploy/DEPLOY.md)**.

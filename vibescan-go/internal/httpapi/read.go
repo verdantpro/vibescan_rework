@@ -34,6 +34,10 @@ type tile struct {
 	CertCN          string     `json:"cert_cn,omitempty"`
 	UpdatedAt       string     `json:"updated_at"`
 	Geo             *geo.GeoIP `json:"geo,omitempty"`
+	// Enrichment summary (present once the host has been enriched).
+	VulnCount  int      `json:"vuln_count"`
+	Tags       []string `json:"tags,omitempty"`
+	ExtraPorts []int    `json:"extra_ports,omitempty"`
 }
 
 // resolveImageURL returns the best image URL for a capture: the R2 public URL
@@ -74,6 +78,9 @@ func (s *Server) toTile(d store.ServiceDoc) tile {
 		CertCN:          d.CertCN,
 		UpdatedAt:       ts.UTC().Format(time.RFC3339),
 		Geo:             s.resolveGeo(d),
+		VulnCount:       d.VulnCount,
+		Tags:            d.ShodanTags,
+		ExtraPorts:      d.ExtraPorts,
 	}
 }
 
@@ -152,6 +159,11 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		b := v == "1" || strings.EqualFold(v, "true")
 		opts.Secured = &b
 	}
+	if v := r.URL.Query().Get("has_vulns"); v != "" {
+		b := v == "1" || strings.EqualFold(v, "true")
+		opts.HasVulns = &b
+	}
+	opts.Tag = strings.TrimSpace(r.URL.Query().Get("tag"))
 
 	docs, err := s.store.Search(r.Context(), opts)
 	if err != nil {
@@ -227,6 +239,25 @@ func (s *Server) handleRandomCapture(w http.ResponseWriter, r *http.Request) {
 		"product_name": product,
 		"whois":        firstWhois(doc.Whois),
 	})
+}
+
+// handleEnrich returns Shodan/InternetDB cross-reference for a captured IP. This
+// is the on-demand (deep) path: it includes the paid Host API when a key is set.
+func (s *Server) handleEnrich(w http.ResponseWriter, r *http.Request) {
+	if !s.cfg.EnrichEnabled || s.enricher == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "enrichment disabled"})
+		return
+	}
+	if _, ok := geo.IPStrToInt(r.PathValue("ip")); !ok {
+		http.Error(w, "invalid ip", http.StatusBadRequest)
+		return
+	}
+	rec, err := s.enricher.Get(r.Context(), r.PathValue("ip"), true)
+	if err != nil {
+		s.readError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, rec)
 }
 
 func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {

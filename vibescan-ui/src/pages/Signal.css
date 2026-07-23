@@ -212,6 +212,40 @@
 }
 .fr-scroll { max-height: 360px; overflow-y: auto; }
 
+/* ---- cross-reference (Shodan / InternetDB) ---- */
+.fr-xref-grid { margin: 12px 0 0; }
+.fr-xref-msg {
+  margin-top: 12px;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.fr-xref .fr-note { grid-template-columns: 110px 1fr; }
+.fr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fr-chip {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 2px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 3px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.fr-chip.vuln {
+  color: var(--alert);
+  border-color: rgba(217, 83, 74, 0.5);
+  background: rgba(217, 83, 74, 0.08);
+}
+.fr-chip.vuln:hover { border-color: var(--alert); }
+.fr-xref-attr {
+  margin-top: 14px;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  color: var(--muted-2);
+}
+.fr-xref-attr a { color: var(--accent); }
+.fr-xref-attr a:hover { text-decoration: underline; }
+
 @media (max-width: 820px) {
   .fr-body { grid-template-columns: 1fr; }
   .fr-notes { border-left: 0; padding-left: 0; }
