@@ -12,7 +12,6 @@ export default function SignalCard({ t }: { t: Tile }) {
         ) : (
           <div className="card-noshot mono">NO SIGNAL</div>
         )}
-        <div className="card-scan" />
         <span className="card-callsign mono">
           {t.ip}:{t.port}
         </span>

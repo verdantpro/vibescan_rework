@@ -47,7 +47,6 @@ export default function Viewport({ detail, loading, auto, onAcquire, onToggleAut
         ) : (
           <div className="vp-empty mono">{loading ? "SCANNING…" : "NO SIGNAL"}</div>
         )}
-        <div className="vp-scan" />
         <div className="vp-vignette" />
 
         {/* OSD overlay */}

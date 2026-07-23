@@ -37,8 +37,8 @@ export default function TimeSeries({ data }: { data: Record<string, number> }) {
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
         <defs>
           <linearGradient id="tsfill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(56,225,255,0.35)" />
-            <stop offset="100%" stopColor="rgba(56,225,255,0)" />
+            <stop offset="0%" stopColor="rgba(88,169,124,0.35)" />
+            <stop offset="100%" stopColor="rgba(88,169,124,0)" />
           </linearGradient>
         </defs>
         {[0, 0.5, 1].map((f) => (

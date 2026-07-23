@@ -60,8 +60,8 @@ export default function WorldMap({ points }: { points: MapPoint[] }) {
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Signal origins worldwide">
         <defs>
           <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="rgba(56,225,255,0.9)" />
-            <stop offset="100%" stopColor="rgba(56,225,255,0)" />
+            <stop offset="0%" stopColor="rgba(88,169,124,0.9)" />
+            <stop offset="100%" stopColor="rgba(88,169,124,0)" />
           </radialGradient>
         </defs>
         <g className="wm-land">

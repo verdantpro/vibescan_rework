@@ -34,8 +34,7 @@ export default function TopBar() {
     <header className="topbar">
       <div className="wrap topbar-inner">
         <NavLink to="/" className="brand">
-          <span className="brand-mark display">VIBE</span>
-          <span className="brand-accent display">SCAN</span>
+          <span className="brand-mark display">Vibe</span><span className="brand-accent display">scan</span>
         </NavLink>
 
         <nav className="nav">

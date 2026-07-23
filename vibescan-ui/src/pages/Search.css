@@ -46,6 +46,6 @@
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 .chip:hover { color: var(--ink); border-color: var(--line-strong); }
-.chip.on { color: var(--cyan); border-color: var(--cyan-dim); background: rgba(56, 225, 255, 0.08); }
+.chip.on { color: var(--cyan); border-color: var(--cyan-dim); background: rgba(88, 169, 124, 0.08); }
 
 .search-count { margin-bottom: 14px; }

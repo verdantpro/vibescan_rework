@@ -1,52 +1,47 @@
-/* VibeScan — futuristic recon console. Design tokens + HUD primitives. */
+/* VibeScan — "Field Record". OSINT/evidence-board design system: Verdant
+   Protocol green on a warm slate ground, editorial serif + telemetry mono. */
 
 :root {
-  --void: #05070d;
-  --void-2: #070a12;
-  --panel: #0c111c;
-  --panel-2: #111828;
-  --glass: rgba(255, 255, 255, 0.028);
-  --line: #1c2740;
-  --line-2: #2a3350;
-  --line-strong: #33436a;
-  --ink: #e8ecf5;
-  --muted: #7e8aa3;
-  --muted-2: #566179;
-
-  --cyan: #38e1ff;
-  --cyan-dim: #1f9dbf;
-  --violet: #9a7cff;
-  --red: #ff5d6c;
-  --amber: #ffc24b;
-  --lime: #7ef0a2;
-
-  --glow-cyan: 0 0 0 1px rgba(56, 225, 255, 0.35), 0 0 22px -6px rgba(56, 225, 255, 0.55);
-  --radius: 4px;
-
-  --font-display: "Chakra Petch", system-ui, sans-serif;
-  --font-body: "Sora", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
-}
-
-/* ---- Field Record design system (OSINT / evidence-board direction) ----
-   Verdant Protocol green on a warm slate ground, serif + mono. Scoped to
-   .record so pages adopt it one at a time without disturbing the legacy HUD
-   theme; redefining the shared token names here overrides them for descendants
-   only. Promote to :root once every page has migrated. */
-.record {
+  /* ground + structure (warm slate, not pure black) */
+  --void: #15171b;
+  --void-2: #0f1114;
   --ground: #15171b;
   --panel: #1b1e23;
+  --panel-2: #21252c;
   --exhibit-back: #0f1114;
+  --glass: rgba(255, 255, 255, 0.02);
   --line: #2c3037;
   --line-2: #3a3f48;
+  --line-strong: #3a3f48;
+
+  /* ink (warm document greys) */
   --ink: #e7e3d8;
   --ink-dim: #a8a394;
-  --muted: #7b7a70;
-  --accent: #58a97c;       /* lifted pine — accent marks/text on dark */
-  --accent-deep: #2f6f4f;  /* Verdant brand pine — solid fills */
-  --accent-soft: #7fa88c;  /* sage — secondary */
-  --alert: #d9534a;        /* cleartext / no-TLS, semantic only */
-  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --muted: #97927f;
+  --muted-2: #6d6b60;
+
+  /* accent — Verdant Protocol green (#2f6f4f), lifted for the dark ground.
+     --cyan/--cyan-dim kept as aliases so legacy references become green. */
+  --accent: #58a97c;
+  --accent-deep: #2f6f4f;
+  --accent-soft: #7fa88c;
+  --cyan: #58a97c;
+  --cyan-dim: #2f6f4f;
+  --violet: #7fa88c;
+
+  /* semantic (separate from accent) */
+  --red: #d9534a;
+  --alert: #d9534a;
+  --amber: #cf9b46;
+  --lime: #58a97c;
+
+  --glow-cyan: 0 0 0 1px rgba(88, 169, 124, 0.35);
+  --radius: 3px;
+
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-serif: var(--font-display);
+  --font-body: "Sora", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 * { box-sizing: border-box; }
@@ -59,26 +54,10 @@ body {
   font-size: 14px;
   line-height: 1.5;
   color: var(--ink);
-  background: var(--void);
-  background-image:
-    radial-gradient(1100px 600px at 78% -8%, rgba(154, 124, 255, 0.10), transparent 60%),
-    radial-gradient(900px 520px at 12% 4%, rgba(56, 225, 255, 0.08), transparent 55%),
-    linear-gradient(var(--void), var(--void));
+  background:
+    radial-gradient(1100px 620px at 100% -6%, rgba(47, 111, 79, 0.10), transparent 58%),
+    var(--void);
   -webkit-font-smoothing: antialiased;
-}
-
-/* faint scanning grid overlay */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(56, 225, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(56, 225, 255, 0.025) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(circle at 50% 30%, #000 0%, transparent 78%);
-  z-index: 0;
 }
 
 a { color: inherit; text-decoration: none; }
@@ -86,7 +65,7 @@ button { font-family: inherit; cursor: pointer; }
 img { max-width: 100%; display: block; }
 
 /* ---- type ---- */
-.display { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.01em; }
+.display { font-family: var(--font-display); font-weight: 600; letter-spacing: 0; }
 .mono { font-family: var(--font-mono); }
 .eyebrow {
   font-family: var(--font-mono);
@@ -97,25 +76,23 @@ img { max-width: 100%; display: block; }
 }
 .dim { color: var(--muted); }
 
-/* ---- panels / glass ---- */
+/* ---- panels ---- */
 .panel {
   position: relative;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)) ,
-    var(--panel);
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 .panel-pad { padding: 18px 20px; }
 
-/* HUD corner brackets */
+/* registration ticks — corner marks in the evidence vernacular */
 .hud { position: relative; }
 .hud::before, .hud::after {
   content: "";
   position: absolute;
-  width: 14px; height: 14px;
-  border: 1px solid var(--cyan);
-  opacity: 0.7;
+  width: 12px; height: 12px;
+  border: 1px solid var(--accent);
+  opacity: 0.8;
   pointer-events: none;
 }
 .hud::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
@@ -135,11 +112,11 @@ img { max-width: 100%; display: block; }
   background: var(--glass);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
-  transition: border-color 0.15s, box-shadow 0.15s, color 0.15s, background 0.15s;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
-.btn:hover { border-color: var(--cyan); color: var(--cyan); box-shadow: var(--glow-cyan); }
-.btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
-.btn-primary { color: var(--cyan); border-color: var(--cyan-dim); }
+.btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(88, 169, 124, 0.06); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-primary { color: var(--accent); border-color: var(--accent-deep); }
 .btn-ghost { border-color: var(--line); background: transparent; }
 
 /* ---- badges ---- */
@@ -152,13 +129,13 @@ img { max-width: 100%; display: block; }
   border: 1px solid transparent;
   white-space: nowrap;
 }
-.badge-ok { color: var(--lime); background: rgba(126, 240, 162, 0.08); border-color: rgba(126, 240, 162, 0.25); }
-.badge-redir { color: var(--amber); background: rgba(255, 194, 75, 0.08); border-color: rgba(255, 194, 75, 0.25); }
-.badge-err { color: var(--red); background: rgba(255, 93, 108, 0.08); border-color: rgba(255, 93, 108, 0.28); }
+.badge-ok { color: var(--accent); background: rgba(88, 169, 124, 0.10); border-color: rgba(88, 169, 124, 0.30); }
+.badge-redir { color: var(--amber); background: rgba(207, 155, 70, 0.10); border-color: rgba(207, 155, 70, 0.30); }
+.badge-err { color: var(--red); background: rgba(217, 83, 74, 0.10); border-color: rgba(217, 83, 74, 0.32); }
 .badge-mute { color: var(--muted); border-color: var(--line); }
 
-.lock { color: var(--amber); }
-.insecure { color: var(--red); }
+.lock { color: var(--accent); }       /* HTTPS — secured */
+.insecure { color: var(--red); }        /* HTTP — cleartext */
 
 /* ---- inputs ---- */
 .input {
@@ -172,31 +149,18 @@ img { max-width: 100%; display: block; }
   border-radius: var(--radius);
 }
 .input::placeholder { color: var(--muted-2); }
-.input:focus { outline: none; border-color: var(--cyan); box-shadow: var(--glow-cyan); }
+.input:focus { outline: none; border-color: var(--accent); }
 
 /* ---- motion ---- */
-@keyframes sweep {
-  0% { transform: translateY(-10%); opacity: 0; }
-  12% { opacity: 1; }
-  88% { opacity: 1; }
-  100% { transform: translateY(1100%); opacity: 0; }
-}
-@keyframes glitchIn {
-  0% { clip-path: inset(0 0 100% 0); filter: hue-rotate(80deg) saturate(2); opacity: 0.4; }
-  40% { clip-path: inset(0 0 0 0); }
-  55% { transform: translateX(-2px); }
-  70% { transform: translateX(2px); filter: none; }
-  100% { transform: none; filter: none; opacity: 1; }
-}
 @keyframes blink { 50% { opacity: 0.25; } }
 .live-dot {
   width: 7px; height: 7px; border-radius: 50%;
-  background: var(--cyan); box-shadow: 0 0 8px var(--cyan);
-  animation: blink 1.6s steps(2, start) infinite;
+  background: var(--accent); box-shadow: 0 0 8px rgba(88, 169, 124, 0.8);
+  animation: blink 1.8s steps(2, start) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .live-dot, [class*="sweep"], [class*="ping"] { animation: none !important; }
+  .live-dot { animation: none; }
 }
 
 /* ---- layout helpers ---- */
