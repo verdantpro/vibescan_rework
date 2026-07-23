@@ -51,6 +51,19 @@ export default function About() {
           <p>
             The scanning agent's own source IP is anonymized in the record. Read APIs are rate-limited.
           </p>
+          <p>
+            You don't have to take our word for any of this — VibeScan is open source, so you can read
+            exactly what it does:{" "}
+            <a
+              className="about-mail"
+              href="https://github.com/verdantpro/vibescan_rework"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              github.com/verdantpro/vibescan_rework
+            </a>
+            .
+          </p>
         </section>
 
         <section className="about-sec">

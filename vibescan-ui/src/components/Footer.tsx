@@ -8,6 +8,9 @@ export default function Footer() {
         <span className="footer-note">VibeScan · a random IPv4 census of the reachable web</span>
         <nav className="footer-links">
           <Link to="/about">About &amp; ethics</Link>
+          <a href="https://github.com/verdantpro/vibescan_rework" target="_blank" rel="noopener noreferrer">
+            Source
+          </a>
           <a href="mailto:abuse@verdantprotocol.com?subject=Opt-out%20request%20(IP%20%2F%20CIDR)">
             Opt out / report
           </a>
