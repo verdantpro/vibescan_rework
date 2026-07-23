@@ -21,8 +21,11 @@ export default function SignalCard({ t }: { t: Tile }) {
           </span>
         ) : null}
         {t.verdict === "malicious" || t.verdict === "suspicious" ? (
-          <span className={`card-verdict mono ${t.verdict}`} title={`Reputation: ${t.verdict} (third-party feeds)`}>
-            {t.verdict === "malicious" ? "⚑ malicious" : "⚑ suspect"}
+          <span
+            className={`card-verdict mono ${t.verdict}`}
+            title={`Reputation: ${t.verdict === "malicious" ? "potentially malicious" : "suspicious"} (third-party feeds, may be inaccurate)`}
+          >
+            {t.verdict === "malicious" ? "⚑ poss. malicious" : "⚑ suspect"}
           </span>
         ) : null}
       </div>

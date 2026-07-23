@@ -33,11 +33,13 @@ function Chips({ items, kind }: { items: string[]; kind?: "vuln" | "flag" }) {
 
 function Verdict({ v }: { v: string }) {
   const cls = v === "malicious" ? "mal" : v === "suspicious" ? "sus" : "clean";
+  // The feeds carry false positives, so the label hedges rather than accuses.
+  const label = v === "malicious" ? "Potentially malicious" : v === "suspicious" ? "Suspicious" : "Clean";
   return (
     <div className={`fr-verdict ${cls}`}>
       <b></b>
-      <span className="fr-verdict-label">{v.toUpperCase()}</span>
-      <span className="fr-verdict-note mono">reputation across third-party feeds</span>
+      <span className="fr-verdict-label">{label.toUpperCase()}</span>
+      <span className="fr-verdict-note mono">per third-party feeds — may be inaccurate</span>
     </div>
   );
 }
