@@ -367,8 +367,9 @@ Key `agent.env` values (see `agent.env.example` for the full set):
 VIBESCAN_SERVER_URL=https://YOUR_DOMAIN     # collector base URL, no trailing path
 VIBESCAN_SHARED_KEY=<EXACT same value as the collector .env>
 
-VIBESCAN_PORTS=80,8080,8000
+VIBESCAN_PORTS=80,443,8000,8080,8443        # web HTTP + HTTPS
 VIBESCAN_NMAP_OPTIONS=-n -T2                # polite; code default is -T3 if unset
+VIBESCAN_RDAP=1                             # network owner via RDAP (cached)
 VIBESCAN_SCAN_THREADS=4                     # concurrent host record builds
 VIBESCAN_BATCH_SIZE=10                      # random IPs per nmap batch
 VIBESCAN_BROWSER_CONCURRENCY=2              # concurrent Chromium captures
@@ -381,7 +382,10 @@ VIBESCAN_NO_REPORT=1
 
 Compose grants `NET_RAW` / `NET_ADMIN` for nmap and `shm_size: 1gb` for Chromium. If nmap complains about privileges, set `privileged: true` on the service in `docker-compose.agent.yml`.
 
-**WHOIS:** the Go agent currently leaves `whois` empty (RDAP enrichment is TODO). PTR (reverse DNS) is still attempted. Captures, banners, status, cert CN, pHash, and DOM hash are produced.
+**RDAP / WHOIS:** the agent looks up network ownership via `rdap.org` (format
+`NETNAME - Org`, cached per /24). Disable with `VIBESCAN_RDAP=0`. PTR (reverse
+DNS) is still attempted. Captures, banners, status, cert CN, pHash, and DOM hash
+are produced.
 
 **Legacy Python agent:** `vibescan_v2/client_agent.py` still speaks the same v1 wire protocol and shared key if you need a temporary fallback. Note: the Python collector may still store the real submitter IP even when `no_report` is set; this Go collector redacts it.
 

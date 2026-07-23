@@ -29,7 +29,7 @@ func main() {
 	cfg := scanner.Config{
 		ServerURL:          serverURL,
 		SharedKey:          env("VIBESCAN_SHARED_KEY", "vibescan-default-key"),
-		Ports:              splitCSV(env("VIBESCAN_PORTS", "80,8080,8000")),
+		Ports:              splitCSV(env("VIBESCAN_PORTS", "80,443,8000,8080,8443")),
 		ScanThreads:        atoi(env("VIBESCAN_SCAN_THREADS", "2"), 2),
 		BatchSize:          atoi(env("VIBESCAN_BATCH_SIZE", "10"), 10),
 		NmapOptions:        env("VIBESCAN_NMAP_OPTIONS", "-n -T3"),
@@ -37,6 +37,7 @@ func main() {
 		CaptureHTTP:        envBool("VIBESCAN_CAPTURE_HTTP", true),
 		NoReport:           envBool("VIBESCAN_NO_REPORT", false),
 		BrowserConcurrency: atoi(env("VIBESCAN_BROWSER_CONCURRENCY", "2"), 2),
+		EnableRDAP:         envBool("VIBESCAN_RDAP", true),
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -52,8 +53,8 @@ func main() {
 	}
 
 	agent := scanner.NewAgent(cfg, bl, browser)
-	log.Printf("[agent] starting — server=%s ports=%v threads=%d batch=%d capture=%v",
-		cfg.ServerURL, cfg.Ports, cfg.ScanThreads, cfg.BatchSize, cfg.CaptureHTTP)
+	log.Printf("[agent] starting — server=%s ports=%v threads=%d batch=%d capture=%v rdap=%v",
+		cfg.ServerURL, cfg.Ports, cfg.ScanThreads, cfg.BatchSize, cfg.CaptureHTTP, cfg.EnableRDAP)
 
 	agent.Run(ctx)
 	log.Printf("[agent] stopped")

@@ -25,6 +25,8 @@ type Config struct {
 	CaptureHTTP        bool
 	NoReport           bool
 	BrowserConcurrency int
+	// EnableRDAP looks up network ownership (default true).
+	EnableRDAP bool
 }
 
 // Agent runs the scan → capture → submit loop.
@@ -33,17 +35,22 @@ type Agent struct {
 	client  *Client
 	bl      *Blacklist
 	browser *Browser
+	rdap    *RDAP
 	blNext  time.Time
 }
 
 // NewAgent wires the collector client, blacklist, and (optionally) the browser.
 func NewAgent(cfg Config, bl *Blacklist, browser *Browser) *Agent {
-	return &Agent{
+	a := &Agent{
 		cfg:     cfg,
 		client:  NewClient(cfg.ServerURL, cfg.SharedKey),
 		bl:      bl,
 		browser: browser,
 	}
+	if cfg.EnableRDAP {
+		a.rdap = NewRDAP()
+	}
+	return a
 }
 
 // Run loops until ctx is cancelled: refresh blacklist, scan a batch, submit.
@@ -131,6 +138,14 @@ func (a *Agent) scanOnce(ctx context.Context) error {
 // enabled. Services whose capture fails are dropped (matching the Python agent).
 // Returns nil when the host yields no usable services.
 func (a *Agent) buildHostRecord(ctx context.Context, ip string, ports map[int]string) map[string]any {
+	// One RDAP lookup per host (cached by /24); used in payload + stego.
+	whoisInfo := ""
+	if a.rdap != nil {
+		rdapCtx, cancel := context.WithTimeout(ctx, rdapTimeout)
+		whoisInfo = a.rdap.Lookup(rdapCtx, ip)
+		cancel()
+	}
+
 	services := map[string]any{}
 	for port, banner := range ports {
 		ts := time.Now().UTC().Format(time.RFC3339Nano)
@@ -150,7 +165,7 @@ func (a *Agent) buildHostRecord(ctx context.Context, ip string, ports map[int]st
 				statusStr = strconv.Itoa(*cap.Status)
 			}
 			stegoPayload := fmt.Sprintf("timestamp:%s|url:%s://%s:%d|status:%s|whois:%s|banner:%s",
-				ts, scheme, ip, port, statusStr, "", trunc(banner, 512))
+				ts, scheme, ip, port, statusStr, trunc(whoisInfo, 512), trunc(banner, 512))
 			rec["capture"] = media.EmbedStegoBase64(cap.PNGBase64, stegoPayload)
 			rec["http_status"] = cap.Status
 			rec["secured"] = cap.Secured
@@ -182,7 +197,7 @@ func (a *Agent) buildHostRecord(ctx context.Context, ip string, ports map[int]st
 	return map[string]any{
 		"ip":       ip,
 		"services": services,
-		"whois":    "", // TODO: WHOIS/RDAP enrichment
+		"whois":    whoisInfo,
 		"rdns":     ptr(ctx, ip),
 	}
 }

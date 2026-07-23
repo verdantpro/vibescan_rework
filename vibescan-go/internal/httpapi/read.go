@@ -201,11 +201,11 @@ func (s *Server) handleRandomCapture(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no captures available", http.StatusServiceUnavailable)
 		return
 	}
-	product := "Unknown"
-	if doc.LandingImage != nil && doc.LandingImage.Product != "" {
-		product = doc.LandingImage.Product
-	} else if p := media.ExtractProduct(doc.Banner); p != "" {
-		product = p
+	// Always re-derive product from banner so stale landing_image.product
+	// (pre-cleanup nmap strings) never leaks into the live viewport.
+	product := media.ExtractProduct(doc.Banner)
+	if product == "" {
+		product = "Unknown"
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"image_url":    s.resolveImageURL(*doc),

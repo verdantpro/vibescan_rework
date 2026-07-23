@@ -15,7 +15,7 @@ from one process (same origin in prod — no CORS required).
 | **Collector** (ingest API) | implemented |
 | **v2 read APIs** (gallery, search, stats, detail, media) | implemented |
 | **Embedded UI + deploy packaging** (Docker/Caddy, indexes, ECR) | implemented |
-| **Agent** (nmap + Chromium capture, `cmd/agent`) | implemented — WHOIS/RDAP enrichment TODO |
+| **Agent** (nmap + Chromium capture, `cmd/agent`) | implemented (RDAP ownership + web ports) |
 | Interactions (votes, tags, favorites, auth) | next |
 | Workers (rollups, network/world map, SSE live) | later |
 
@@ -167,7 +167,7 @@ public URL (S3/CloudFront or R2) when configured, otherwise `/api/v2/image/...`.
 ```bash
 export VIBESCAN_SERVER_URL=http://127.0.0.1:8000
 export VIBESCAN_SHARED_KEY=dev-key
-export VIBESCAN_PORTS=80,8080,8000
+export VIBESCAN_PORTS=80,443,8000,8080,8443
 go run ./cmd/agent
 ```
 
@@ -178,14 +178,14 @@ Production packaging: `Dockerfile.agent` + `deploy/docker-compose.agent.yml` +
 |-----|---------|--------|
 | `VIBESCAN_SERVER_URL` | _(required)_ | Collector base URL, no path |
 | `VIBESCAN_SHARED_KEY` | `vibescan-default-key` | Must match collector |
-| `VIBESCAN_PORTS` | `80,8080,8000` | CSV |
+| `VIBESCAN_PORTS` | `80,443,8000,8080,8443` | CSV web ports |
 | `VIBESCAN_NMAP_OPTIONS` | `-n -T3` | Prefer `-T2` in production examples |
 | `VIBESCAN_SCAN_THREADS` | `2` | Concurrent host record builds |
 | `VIBESCAN_BATCH_SIZE` | `10` | Random IPs per nmap batch |
 | `VIBESCAN_BROWSER_CONCURRENCY` | `2` | Concurrent Chromium captures |
 | `VIBESCAN_CAPTURE_HTTP` | `1` | `0` = discover-only |
 | `VIBESCAN_NO_REPORT` | off | Redact `submitted_by` (→ `0.0.0.0`) + set `anon` |
-
+| `VIBESCAN_RDAP` | `1` | RDAP ownership lookup (cached /24) |
 ## Layout
 
 ```

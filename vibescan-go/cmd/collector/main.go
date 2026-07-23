@@ -21,6 +21,9 @@ import (
 
 func main() {
 	cfg := config.Load()
+	if cfg.SharedKey == config.DefaultSharedKey {
+		log.Printf("[collector] WARNING: using default VIBESCAN_SHARED_KEY — set a strong secret in production")
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
