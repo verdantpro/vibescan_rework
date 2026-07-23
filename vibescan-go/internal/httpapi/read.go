@@ -105,12 +105,15 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 	limit := clampInt(queryInt(r, "limit", 200), 1, s.cfg.MaxGallery)
 	offset := clampInt(queryInt(r, "offset", 0), 0, 1_000_000)
 	screensOnly := queryBool(r, "with_screenshots_only", true)
+	// sort=recent → the "Latest signals" rail: strict newest-first, any status.
+	recent := strings.EqualFold(r.URL.Query().Get("sort"), "recent")
 
 	// Over-fetch one row so has_more reflects whether a real next page exists,
 	// rather than guessing from a full page (the gallery's per-/24 dedup can
 	// return exactly `limit` on the final page).
 	docs, err := s.store.Gallery(r.Context(), store.ListOpts{
-		Limit: limit + 1, Offset: offset, ScreensOnly: screensOnly, MaxTimeMS: s.cfg.AggMaxTimeMS,
+		Limit: limit + 1, Offset: offset, ScreensOnly: screensOnly, Recent: recent,
+		MaxTimeMS: s.cfg.AggMaxTimeMS,
 	})
 	if err != nil {
 		s.readError(w, err)

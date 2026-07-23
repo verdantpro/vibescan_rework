@@ -106,6 +106,10 @@ export const api = {
   gallery: (limit = 60, offset = 0) =>
     get<ListResponse>(`/api/v2/gallery?limit=${limit}&offset=${offset}`),
 
+  // Pure-recency feed ("Latest signals"): newest captures first, any status.
+  recent: (limit = 60, offset = 0) =>
+    get<ListResponse>(`/api/v2/gallery?sort=recent&limit=${limit}&offset=${offset}`),
+
   search: (p: SearchParams) => {
     const q = new URLSearchParams();
     if (p.q) q.set("q", p.q);

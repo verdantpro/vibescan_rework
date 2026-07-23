@@ -11,6 +11,7 @@ export default function Console() {
   const [loading, setLoading] = useState(true);
   const [auto, setAuto] = useState(false);
   const [recent, setRecent] = useState<Tile[]>([]);
+  const [latest, setLatest] = useState<Tile[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const timer = useRef<number | null>(null);
 
@@ -41,15 +42,24 @@ export default function Console() {
     }
   }, []);
 
+  const loadRails = useCallback(() => {
+    api.gallery(48).then((r) => setRecent(r.entries)).catch(() => {});
+    api.recent(12).then((r) => setLatest(r.entries)).catch(() => {});
+  }, []);
+
   useEffect(() => {
     acquire();
-    api.gallery(48).then((r) => setRecent(r.entries)).catch(() => {});
+    loadRails();
     api.stats(8760).then(setStats).catch(() => {});
-  }, [acquire]);
+  }, [acquire, loadRails]);
 
   useEffect(() => {
     if (!auto) return;
-    timer.current = window.setInterval(acquire, 6000);
+    timer.current = window.setInterval(() => {
+      acquire();
+      // Keep the Latest rail live so new agent finds surface as they land.
+      api.recent(12).then((r) => setLatest(r.entries)).catch(() => {});
+    }, 6000);
     return () => {
       if (timer.current) window.clearInterval(timer.current);
     };
@@ -83,6 +93,20 @@ export default function Console() {
         onAcquire={acquire}
         onToggleAuto={() => setAuto((a) => !a)}
       />
+
+      {latest.length > 0 && (
+        <section className="console-recent">
+          <div className="row spread console-section-head">
+            <span className="eyebrow">◊ Latest signals</span>
+            <span className="mono dim">newest first · any status</span>
+          </div>
+          <div className="console-strip">
+            {latest.slice(0, 6).map((t) => (
+              <SignalCard key={`latest-${t.ip}:${t.port}`} t={t} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="panel panel-pad console-map">
         <div className="row spread console-section-head">

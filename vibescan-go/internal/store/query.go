@@ -64,6 +64,9 @@ type ListOpts struct {
 	StatusCode  *int // exact HTTP status match
 	Product     string
 	ScreensOnly bool
+	// Recent selects the pure-recency gallery ("Latest signals"): screenshots
+	// only, newest first, any status, no per-/24 dedup or 200-first ranking.
+	Recent bool
 }
 
 // hasCaptureMatch is the aggregation match ensuring a real (non-error) capture,
@@ -179,10 +182,17 @@ func (m *Mongo) aggregateDocs(ctx context.Context, pipeline mongo.Pipeline, maxT
 	return docs, nil
 }
 
-// Gallery returns ranked captured services for the feed/console (screenshots
-// only). Prefer HTTP 200, interesting screenshots, and one host per /24.
+// Gallery returns captured services for the feed/console.
+//
+//   - Recent:      screenshots only, strict newest-first, any status, no dedup
+//     (the "Latest signals" rail — new agent finds appear immediately).
+//   - ScreensOnly: ranked gallery — prefer HTTP 200, non-blank screenshots, and
+//     one host per /24 (the curated feed).
+//   - otherwise:   plain recency list over all docs (unused by the UI).
 func (m *Mongo) Gallery(ctx context.Context, o ListOpts) ([]ServiceDoc, error) {
-	// ScreensOnly=false is unused by the UI; still honor a simple recency list.
+	if o.Recent {
+		return m.aggregateDocs(ctx, listPipeline(bson.D(hasCaptureMatch), o.Offset, o.Limit), o.MaxTimeMS)
+	}
 	if !o.ScreensOnly {
 		return m.aggregateDocs(ctx, listPipeline(bson.D{}, o.Offset, o.Limit), o.MaxTimeMS)
 	}
