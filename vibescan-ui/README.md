@@ -9,21 +9,30 @@ same-origin with the API.
 
 ## Concept
 
-An ops-deck that "acquires" random exposed machines and maps where signals
-originate. Palette is CRT-free plasma: cyan (live) + violet + red (insecure) on a
-blue-black void. Type: Chakra Petch (display) · Sora (body) · JetBrains Mono
-(telemetry). The signature is the **acquisition viewport** (scanning HUD +
-telemetry readout) paired with a **world map** of live GeoIP origins.
+**"Field Record"** — an OSINT/evidence-board treatment of the census: each host
+is presented like a case file. Palette is the Verdant Protocol green (`#2f6f4f`
+family, lifted for the dark ground) on a warm slate, with red reserved as a
+semantic signal for cleartext/no-TLS. Type pairs an editorial serif for
+statements (Iowan Old Style / Palatino / Georgia stack) with JetBrains Mono for
+all telemetry/data, and Sora for running body copy. The signature is the
+**capture-as-exhibit** treatment (screenshot pinned with registration ticks +
+mono field notes) and the **live acquisition viewport** paired with a **world
+map** of GeoIP origins. `HTTPS` reads green (secured), `HTTP` red (cleartext).
+
+Design tokens live on `:root` in `src/theme.css`.
 
 ## Routes
 
 | Path | Screen |
 |------|--------|
-| `/` | **Live** — acquisition viewport + world map + headline |
-| `/feed` | **Feed** — recent captured services (gallery) |
-| `/search` | **Search** — query + port/status/protocol filters |
+| `/` | **Live** — acquisition viewport + latest/recent rails + world map + headline |
+| `/feed` | **Feed** — captured services, `ranked` (curated) or `latest` (recency) |
+| `/search` | **Search** — query + port/status/protocol filters, `$text`-backed |
 | `/stats` | **Stats** — telemetry dashboard (ports, status, servers, over-time) |
-| `/signal/:ip/:port` | **Signal** — full capture + record + banner + page source |
+| `/signal/:ip/:port` | **Signal** — the case file: exhibit + field notes + banner + page source |
+| `/about` | **About** — how it works, scope, and the opt-out / takedown / abuse posture |
+
+A global footer (About & ethics · opt-out contact) is present on every page.
 
 ## Run
 
@@ -43,17 +52,23 @@ npm run build                   # typecheck + production bundle → dist/
 ```
 
 The Go API sends `Access-Control-Allow-Origin: *`, so the Vite dev server on a
-different port works out of the box. Production builds set `VITE_API_BASE=""` so
-the browser uses same-origin relative URLs inside the embedded app.
+different port works out of the box. `VITE_API_BASE` defaults to
+`http://127.0.0.1:8000` in dev and `""` (same-origin) in a production build, so
+the embedded app uses relative URLs even without an env file.
 
 ## Notes
 
 - `src/api.ts` is the single typed client; relative `image_url`s are resolved
-  against `VITE_API_BASE`.
+  against `VITE_API_BASE`. Failed calls throw a typed `ApiError` with an
+  `offline` flag (honoring the collector's `503 {offline:true}`), so pages show a
+  retryable "couldn't reach the collector" state (`components/ErrorState`) rather
+  than a false "no results".
 - The world map projects `public/world-110m.json` (from `world-atlas`) with
   `d3-geo`; points come from recent gallery entries' GeoIP (collector needs
   `GeoLite2-City.mmdb` for coordinates).
-- Thumbs up/down on the viewport are stubbed until the votes API lands.
 - Charts are hand-rolled to match the theme (single-hue for magnitude, reserved
   status colors for response codes).
+- The `/about` page states the moderation / opt-out / takedown posture and points
+  to the abuse contact; keep it in sync with what the collector actually enforces
+  (e.g. the agent CIDR blacklist).
 - Deploy of the combined stack: **[`../vibescan-go/deploy/DEPLOY.md`](../vibescan-go/deploy/DEPLOY.md)**.

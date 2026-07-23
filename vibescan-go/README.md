@@ -140,9 +140,9 @@ the collector). Keyed by `ip/port` rather than Mongo `_id`.
 
 | Endpoint | Purpose |
 |----------|---------|
-| `GET /api/v2/gallery?limit=&offset=&with_screenshots_only=` | Recent captured services as tiles |
-| `GET /api/v2/search?q=&port=&status=&secured=&product=&limit=&offset=` | Filtered / free-text search |
-| `GET /api/v2/services/{ip}/{port}` | Single service detail (incl. `fulltext`) |
+| `GET /api/v2/gallery?limit=&offset=&with_screenshots_only=&sort=` | Captured tiles; `sort=recent` = strict newest-first (any status), else the ranked feed |
+| `GET /api/v2/search?q=&port=&status=&secured=&product=&limit=&offset=` | Filtered / `$text` free-text search |
+| `GET /api/v2/services/{ip}/{port}?brief=` | Single service detail (incl. `fulltext`); `brief=1` omits `fulltext` |
 | `GET /api/v2/stats?time_range=<hours>` | Windowed aggregate snapshot (one `$facet` pass, 60s cached) |
 | `GET /api/v2/random-capture` | One random landing-page tile (`$sample`) |
 | `GET /api/v2/image/{ip}/{port}` | Serves base64 captures; 302-redirects to object storage for `r2:` refs |
