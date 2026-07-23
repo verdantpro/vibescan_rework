@@ -7,6 +7,9 @@ interface Props {
   detail: SignalDetail | null;
   loading: boolean;
   auto: boolean;
+  /** Auto-acquire cadence in seconds, surfaced on the control so the polling is explicit. */
+  autoSeconds: number;
+  error?: boolean;
   onAcquire: () => void;
   onToggleAuto: () => void;
 }
@@ -32,7 +35,7 @@ function Line({
   );
 }
 
-export default function Viewport({ detail, loading, auto, onAcquire, onToggleAuto }: Props) {
+export default function Viewport({ detail, loading, auto, autoSeconds, error, onAcquire, onToggleAuto }: Props) {
   const s = detail?.service;
   const geo = s?.geo;
   const coords = geo ? `${geo.lat.toFixed(3)}, ${geo.lon.toFixed(3)}` : null;
@@ -45,7 +48,9 @@ export default function Viewport({ detail, loading, auto, onAcquire, onToggleAut
         {s?.image_url ? (
           <img key={key} className="vp-img" src={imageURL(s.image_url)} alt="" />
         ) : (
-          <div className="vp-empty mono">{loading ? "SCANNING…" : "NO SIGNAL"}</div>
+          <div className="vp-empty mono">
+            {loading ? "SCANNING…" : error ? "COULDN'T REACH THE COLLECTOR" : "NO SIGNAL"}
+          </div>
         )}
         <div className="vp-vignette" />
 
@@ -81,10 +86,15 @@ export default function Viewport({ detail, loading, auto, onAcquire, onToggleAut
 
         <div className="vp-controls">
           <button className="btn btn-primary" onClick={onAcquire} disabled={loading}>
-            {loading ? "◌ acquiring" : "▸ acquire next"}
+            {loading ? "◌ acquiring" : error ? "↻ retry" : "▸ acquire next"}
           </button>
-          <button className={`btn${auto ? " btn-primary" : " btn-ghost"}`} onClick={onToggleAuto}>
-            {auto ? "❚❚ auto" : "▶ auto"}
+          <button
+            className={`btn${auto ? " btn-primary" : " btn-ghost"}`}
+            onClick={onToggleAuto}
+            title={`Auto-acquire a new signal every ${autoSeconds} seconds`}
+            aria-pressed={auto}
+          >
+            {auto ? "❚❚ pause auto" : `▶ auto · ${autoSeconds}s`}
           </button>
           {s && (
             <Link className="btn btn-ghost" to={`/signal/${s.ip}/${s.port}`}>

@@ -21,9 +21,16 @@
 }
 .search-input::placeholder { color: var(--muted-2); }
 
-.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 24px; }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 24px; }
+.filter-group { display: flex; align-items: center; gap: 9px; }
+.filter-label {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 .filter-port {
-  width: 92px;
+  width: 78px;
   padding: 8px 12px;
   background: var(--panel);
   border: 1px solid var(--line-strong);
@@ -31,7 +38,8 @@
   color: var(--ink);
   font-size: 13px;
 }
-.filter-port:focus { outline: none; border-color: var(--cyan); }
+.filter-port:focus { outline: none; border-color: var(--accent); }
+.filter-port:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip {
@@ -46,6 +54,7 @@
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 .chip:hover { color: var(--ink); border-color: var(--line-strong); }
-.chip.on { color: var(--cyan); border-color: var(--cyan-dim); background: rgba(88, 169, 124, 0.08); }
+.chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chip.on { color: var(--accent); border-color: var(--accent); background: rgba(88, 169, 124, 0.16); }
 
 .search-count { margin-bottom: 14px; }

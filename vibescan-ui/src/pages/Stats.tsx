@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type Stats } from "../api";
 import TimeSeries from "../components/TimeSeries";
+import ErrorState from "../components/ErrorState";
 import "./grid.css";
 import "./Stats.css";
 
@@ -49,15 +50,22 @@ export default function StatsPage() {
   const [hours, setHours] = useState(24);
   const [s, setS] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    api.stats(hours).then((d) => alive && setS(d)).catch(() => alive && setS(null)).finally(() => alive && setLoading(false));
+    setError(false);
+    api
+      .stats(hours)
+      .then((d) => alive && setS(d))
+      .catch(() => alive && setError(true))
+      .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
-  }, [hours]);
+  }, [hours, reloadKey]);
 
   const secure = s?.secure_capture_counts.secured ?? 0;
   const insecure = s?.secure_capture_counts.insecure ?? 0;
@@ -86,6 +94,8 @@ export default function StatsPage() {
 
       {loading && !s ? (
         <div className="empty">◌ AGGREGATING…</div>
+      ) : error && !s ? (
+        <ErrorState onRetry={() => setReloadKey((k) => k + 1)} />
       ) : !s ? (
         <div className="empty">TELEMETRY OFFLINE</div>
       ) : (

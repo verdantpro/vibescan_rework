@@ -6,10 +6,15 @@ import WorldMap, { type MapPoint } from "../components/WorldMap";
 import SignalCard from "../components/SignalCard";
 import "./Console.css";
 
+// Auto-acquire cadence. Kept as one constant so the interval and the button
+// label ("auto · 6s") can never drift apart.
+const AUTO_SECONDS = 6;
+
 export default function Console() {
   const [detail, setDetail] = useState<SignalDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [auto, setAuto] = useState(false);
+  const [error, setError] = useState(false);
   const [recent, setRecent] = useState<Tile[]>([]);
   const [latest, setLatest] = useState<Tile[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -35,8 +40,11 @@ export default function Console() {
       }
       const d = await api.signal(ip, port, { brief: true });
       setDetail(d);
+      setError(false);
     } catch {
-      // No captures yet, or one vanished — leave prior signal on screen.
+      // Collector unreachable or the pool is empty — flag it (the viewport shows
+      // an explicit message + retry) and leave any prior signal on screen.
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -59,7 +67,7 @@ export default function Console() {
       acquire();
       // Keep the Latest rail live so new agent finds surface as they land.
       api.recent(12).then((r) => setLatest(r.entries)).catch(() => {});
-    }, 6000);
+    }, AUTO_SECONDS * 1000);
     return () => {
       if (timer.current) window.clearInterval(timer.current);
     };
@@ -90,6 +98,8 @@ export default function Console() {
         detail={detail}
         loading={loading}
         auto={auto}
+        autoSeconds={AUTO_SECONDS}
+        error={error && !detail}
         onAcquire={acquire}
         onToggleAuto={() => setAuto((a) => !a)}
       />

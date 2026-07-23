@@ -16,3 +16,13 @@
   padding: 70px 0;
   letter-spacing: 0.08em;
 }
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 64px 0;
+  text-align: center;
+}
+.error-msg { color: var(--ink-dim); letter-spacing: 0.08em; font-size: 13px; }

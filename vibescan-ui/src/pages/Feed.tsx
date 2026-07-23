@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type Tile } from "../api";
 import SignalCard from "../components/SignalCard";
+import ErrorState from "../components/ErrorState";
 import "./grid.css";
 
 const PAGE = 60;
@@ -13,6 +14,8 @@ export default function Feed() {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Switching mode restarts pagination from the top.
   useEffect(() => {
@@ -22,6 +25,7 @@ export default function Feed() {
   useEffect(() => {
     let alive = true;
     setLoading(true);
+    setError(false);
     const fetcher = mode === "latest" ? api.recent : api.gallery;
     fetcher(PAGE, offset)
       .then((r) => {
@@ -29,11 +33,12 @@ export default function Feed() {
         setTiles((prev) => (offset === 0 ? r.entries : [...prev, ...r.entries]));
         setHasMore(r.has_more);
       })
+      .catch(() => alive && setError(true))
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
-  }, [offset, mode]);
+  }, [offset, mode, reloadKey]);
 
   return (
     <div className="page wrap">
@@ -57,7 +62,9 @@ export default function Feed() {
         </div>
       </div>
 
-      {tiles.length === 0 && !loading ? (
+      {error && tiles.length === 0 ? (
+        <ErrorState onRetry={() => setReloadKey((k) => k + 1)} />
+      ) : tiles.length === 0 && !loading ? (
         <div className="empty">NO SIGNALS ON RECORD</div>
       ) : (
         <div className="signal-grid">
@@ -70,6 +77,10 @@ export default function Feed() {
       <div className="page-more">
         {loading ? (
           <span className="mono dim">◌ scanning…</span>
+        ) : error && tiles.length > 0 ? (
+          <button className="btn" onClick={() => setReloadKey((k) => k + 1)}>
+            ↻ retry
+          </button>
         ) : hasMore ? (
           <button className="btn" onClick={() => setOffset((o) => o + PAGE)}>
             load more ↓

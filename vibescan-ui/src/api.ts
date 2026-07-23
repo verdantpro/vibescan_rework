@@ -89,9 +89,44 @@ export function imageURL(url: string): string {
   return API_BASE + url;
 }
 
+/** A failed API call. `offline` means the collector was unreachable or reported
+ *  itself offline (503 / {offline:true}) — distinct from a request that
+ *  succeeded and simply returned no results. */
+export class ApiError extends Error {
+  offline: boolean;
+  status?: number;
+  constructor(message: string, opts: { offline: boolean; status?: number }) {
+    super(message);
+    this.name = "ApiError";
+    this.offline = opts.offline;
+    this.status = opts.status;
+  }
+}
+
+export function isOffline(e: unknown): boolean {
+  return e instanceof ApiError && e.offline;
+}
+
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(API_BASE + path);
-  if (!res.ok) throw new Error(`${path} → ${res.status}`);
+  let res: Response;
+  try {
+    res = await fetch(API_BASE + path);
+  } catch {
+    // Network-level failure: the collector is unreachable.
+    throw new ApiError(`${path} → unreachable`, { offline: true });
+  }
+  if (!res.ok) {
+    // The read APIs return 503 {offline:true} when the datastore is down; treat
+    // that (and any 5xx) as offline so the UI can distinguish it from "no data".
+    let offline = res.status >= 500;
+    try {
+      const body = await res.clone().json();
+      if (body && body.offline === true) offline = true;
+    } catch {
+      /* non-JSON body; keep the status-based guess */
+    }
+    throw new ApiError(`${path} → ${res.status}`, { offline, status: res.status });
+  }
   return res.json() as Promise<T>;
 }
 

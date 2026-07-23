@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type Tile } from "../api";
 import SignalCard from "../components/SignalCard";
+import ErrorState from "../components/ErrorState";
 import "./grid.css";
 import "./Search.css";
 
@@ -19,6 +20,8 @@ export default function Search() {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [touched, setTouched] = useState(false);
+  const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(q.trim()), 250);
@@ -39,11 +42,13 @@ export default function Search() {
     if (!active) {
       setTiles([]);
       setHasMore(false);
+      setError(false);
       return;
     }
     let alive = true;
     setLoading(true);
     setTouched(true);
+    setError(false);
     api
       .search({
         q: debounced || undefined,
@@ -59,12 +64,16 @@ export default function Search() {
         setTiles((prev) => (page === 0 ? r.entries : [...prev, ...r.entries]));
         setHasMore(r.has_more);
       })
-      .catch(() => alive && page === 0 && setTiles([]))
+      .catch(() => {
+        if (!alive) return;
+        setError(true);
+        if (page === 0) setTiles([]);
+      })
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
-  }, [debounced, port, sec, status, active, page]);
+  }, [debounced, port, sec, status, active, page, reloadKey]);
 
   const statuses: [string, number | null][] = [
     ["any", null],
@@ -95,35 +104,53 @@ export default function Search() {
       </div>
 
       <div className="filters">
-        <input
-          className="filter-port mono"
-          value={port}
-          onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))}
-          placeholder="port"
-          inputMode="numeric"
-        />
-        <div className="chips">
-          {(["any", "http", "https"] as SecFilter[]).map((s) => (
-            <button key={s} className={`chip mono${sec === s ? " on" : ""}`} onClick={() => setSec(s)}>
-              {s}
-            </button>
-          ))}
+        <div className="filter-group">
+          <span className="filter-label mono">Port</span>
+          <input
+            className="filter-port mono"
+            value={port}
+            onChange={(e) => setPort(e.target.value.replace(/\D/g, ""))}
+            placeholder="any"
+            inputMode="numeric"
+            aria-label="Filter by port"
+          />
         </div>
-        <div className="chips">
-          {statuses.map(([label, val]) => (
-            <button
-              key={label}
-              className={`chip mono${status === val ? " on" : ""}`}
-              onClick={() => setStatus(val)}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="filter-group">
+          <span className="filter-label mono">Protocol</span>
+          <div className="chips">
+            {(["any", "http", "https"] as SecFilter[]).map((s) => (
+              <button
+                key={s}
+                className={`chip mono${sec === s ? " on" : ""}`}
+                aria-pressed={sec === s}
+                onClick={() => setSec(s)}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="filter-group">
+          <span className="filter-label mono">Status</span>
+          <div className="chips">
+            {statuses.map(([label, val]) => (
+              <button
+                key={label}
+                className={`chip mono${status === val ? " on" : ""}`}
+                aria-pressed={status === val}
+                onClick={() => setStatus(val)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {!active ? (
         <div className="empty">ENTER A QUERY OR PICK A FILTER</div>
+      ) : error && tiles.length === 0 ? (
+        <ErrorState onRetry={() => setReloadKey((k) => k + 1)} />
       ) : loading && page === 0 ? (
         <div className="empty">◌ SCANNING…</div>
       ) : tiles.length === 0 && touched ? (
@@ -142,6 +169,10 @@ export default function Search() {
           <div className="page-more">
             {loading ? (
               <span className="mono dim">◌ scanning…</span>
+            ) : error ? (
+              <button className="btn" onClick={() => setReloadKey((k) => k + 1)}>
+                ↻ retry
+              </button>
             ) : hasMore ? (
               <button className="btn" onClick={() => setPage((p) => p + 1)}>
                 load more ↓

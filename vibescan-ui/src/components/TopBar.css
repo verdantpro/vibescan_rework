@@ -9,6 +9,7 @@
 .topbar-inner { display: flex; align-items: center; height: 58px; gap: 28px; }
 
 .brand { display: flex; align-items: baseline; gap: 0; }
+.brand:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--radius); }
 .brand-mark { font-size: 22px; font-weight: 600; color: var(--ink); }
 .brand-accent { font-size: 22px; font-weight: 600; color: var(--accent); }
 
@@ -23,6 +24,7 @@
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 .nav-link:hover { color: var(--ink); }
+.nav-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .nav-link.active {
   color: var(--cyan);
   border-color: rgba(88, 169, 124, 0.28);
