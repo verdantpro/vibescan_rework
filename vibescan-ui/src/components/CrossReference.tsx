@@ -19,21 +19,30 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Chips({ items, kind }: { items: string[]; kind?: "vuln" | "flag" }) {
+function Chips({ items, kind, href }: { items: string[]; kind?: "vuln" | "flag"; href?: (s: string) => string }) {
   return (
     <span className="fr-chips">
-      {items.map((t) => (
-        <span key={t} className={`fr-chip${kind ? ` ${kind}` : ""}`}>
-          {t}
-        </span>
-      ))}
+      {items.map((s) =>
+        href ? (
+          <a key={s} className={`fr-chip${kind ? ` ${kind}` : ""}`} href={href(s)} target="_blank" rel="noopener noreferrer">
+            {s}
+          </a>
+        ) : (
+          <span key={s} className={`fr-chip${kind ? ` ${kind}` : ""}`}>
+            {s}
+          </span>
+        )
+      )}
     </span>
   );
 }
 
+function SubHead({ children }: { children: ReactNode }) {
+  return <div className="fr-xref-sub mono">{children}</div>;
+}
+
 function Verdict({ v }: { v: string }) {
   const cls = v === "malicious" ? "mal" : v === "suspicious" ? "sus" : "clean";
-  // The feeds carry false positives, so the label hedges rather than accuses.
   const label = v === "malicious" ? "Potentially malicious" : v === "suspicious" ? "Suspicious" : "Clean";
   return (
     <div className={`fr-verdict ${cls}`}>
@@ -43,6 +52,9 @@ function Verdict({ v }: { v: string }) {
     </div>
   );
 }
+
+const d10 = (s?: string) => (s ? s.slice(0, 10) : "");
+const joind = (...parts: (string | undefined | false)[]) => parts.filter(Boolean).join(" · ");
 
 export default function CrossReference({ ip }: { ip: string }) {
   const [enr, setEnr] = useState<Enrichment | null>(null);
@@ -65,22 +77,7 @@ export default function CrossReference({ ip }: { ip: string }) {
   }, [ip]);
 
   const t = enr?.threat;
-  const hasData =
-    !!enr &&
-    ((enr.ports?.length ?? 0) > 0 ||
-      (enr.vulns?.length ?? 0) > 0 ||
-      (enr.tags?.length ?? 0) > 0 ||
-      !!enr.org ||
-      (enr.hostnames?.length ?? 0) > 0 ||
-      !!enr.verdict ||
-      !!t);
 
-  const lastSeen =
-    enr?.last_seen && !enr.last_seen.startsWith("0001")
-      ? enr.last_seen.replace("T", " ").slice(0, 19) + " UTC"
-      : null;
-
-  // Network flags aggregated from IPQS + IPinfo.
   const flags: string[] = [];
   if (t?.ipqs?.tor || t?.ipinfo?.is_tor) flags.push("tor");
   if (t?.ipqs?.vpn || t?.ipinfo?.is_vpn) flags.push("vpn");
@@ -88,6 +85,22 @@ export default function CrossReference({ ip }: { ip: string }) {
   if (t?.ipqs?.bot_status) flags.push("bot");
   if (t?.ipinfo?.is_hosting) flags.push("hosting");
   if (t?.ipqs?.recent_abuse) flags.push("recent-abuse");
+
+  const shodanLastSeen =
+    enr?.last_seen && !enr.last_seen.startsWith("0001")
+      ? enr.last_seen.replace("T", " ").slice(0, 19) + " UTC"
+      : null;
+
+  const hasExposure =
+    (enr?.ports?.length ?? 0) > 0 ||
+    (enr?.vulns?.length ?? 0) > 0 ||
+    (enr?.cpes?.length ?? 0) > 0 ||
+    (enr?.products?.length ?? 0) > 0 ||
+    (enr?.tags?.length ?? 0) > 0;
+  const hasRep = !!(t?.virustotal || t?.abuseipdb || t?.greynoise || t?.ipqs || t?.pulsedive || flags.length);
+  const hasFeeds = !!((t?.otx && t.otx.pulse_count > 0) || (t?.threatfox && t.threatfox.ioc_count > 0));
+  const hasNet = !!(enr?.org || t?.bgp?.asn || t?.ipapi || t?.ipinfo || (enr?.hostnames?.length ?? 0) > 0);
+  const hasData = hasExposure || hasRep || hasFeeds || hasNet || !!enr?.verdict;
 
   return (
     <section className="fr-sec fr-xref">
@@ -103,131 +116,196 @@ export default function CrossReference({ ip }: { ip: string }) {
         <>
           {enr!.verdict ? <Verdict v={enr!.verdict} /> : null}
 
-          <dl className="fr-xref-grid">
-            {enr!.ports?.length ? (
-              <Row label="Also open">
-                <span className="fr-chips">
-                  {enr!.ports.map((p) => (
-                    <span key={p} className="fr-chip">
-                      {p}
-                      {PORT_NAME[p] ? `/${PORT_NAME[p]}` : ""}
+          {/* ---------------- Exposure ---------------- */}
+          {hasExposure ? (
+            <>
+              <SubHead>◇ Exposure</SubHead>
+              <dl className="fr-xref-grid">
+                {enr!.ports?.length ? (
+                  <Row label="Open ports">
+                    <span className="fr-chips">
+                      {enr!.ports.map((p) => (
+                        <span key={p} className="fr-chip">
+                          {p}
+                          {PORT_NAME[p] ? `/${PORT_NAME[p]}` : ""}
+                        </span>
+                      ))}
                     </span>
-                  ))}
-                </span>
-              </Row>
-            ) : null}
+                  </Row>
+                ) : null}
+                {enr!.vulns?.length ? (
+                  <Row label={`CVEs · ${enr!.vulns.length}`}>
+                    <Chips items={enr!.vulns} kind="vuln" href={(v) => `https://nvd.nist.gov/vuln/detail/${encodeURIComponent(v)}`} />
+                  </Row>
+                ) : null}
+                {enr!.products?.length ? <Row label="Products">{enr!.products.join(" · ")}</Row> : null}
+                {enr!.cpes?.length ? (
+                  <Row label="CPEs">
+                    <Chips items={enr!.cpes} />
+                  </Row>
+                ) : null}
+                {enr!.tags?.length ? (
+                  <Row label="Tags">
+                    <Chips items={enr!.tags} />
+                  </Row>
+                ) : null}
+              </dl>
+            </>
+          ) : null}
 
-            {enr!.vulns?.length ? (
-              <Row label={`Exposure · ${enr!.vulns.length} CVE${enr!.vulns.length > 1 ? "s" : ""}`}>
-                <span className="fr-chips">
-                  {enr!.vulns.map((v) => (
-                    <a
-                      key={v}
-                      className="fr-chip vuln"
-                      href={`https://nvd.nist.gov/vuln/detail/${encodeURIComponent(v)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {v}
-                    </a>
-                  ))}
-                </span>
-              </Row>
-            ) : null}
+          {/* ---------------- Reputation ---------------- */}
+          {hasRep ? (
+            <>
+              <SubHead>◇ Reputation</SubHead>
+              <dl className="fr-xref-grid">
+                {flags.length ? (
+                  <Row label="Network flags">
+                    <Chips items={flags} kind="flag" />
+                  </Row>
+                ) : null}
+                {t?.virustotal ? (
+                  <Row label="VirusTotal">
+                    <span className={t.virustotal.malicious > 0 ? "fr-bad" : undefined}>
+                      {t.virustotal.malicious} malicious · {t.virustotal.suspicious} suspicious ·{" "}
+                      {t.virustotal.harmless} harmless · {t.virustotal.undetected} undetected
+                    </span>
+                    {t.virustotal.last_analysis_date ? (
+                      <span className="fr-sub"> — last scan {t.virustotal.last_analysis_date}</span>
+                    ) : null}
+                  </Row>
+                ) : null}
+                {t?.abuseipdb ? (
+                  <Row label="AbuseIPDB">
+                    <span className={t.abuseipdb.abuse_confidence >= 25 ? "fr-bad" : undefined}>
+                      {t.abuseipdb.abuse_confidence}% confidence · {t.abuseipdb.total_reports} reports
+                    </span>
+                    {(t.abuseipdb.usage_type || t.abuseipdb.domain || t.abuseipdb.last_reported_at || t.abuseipdb.is_tor || t.abuseipdb.is_whitelisted) ? (
+                      <span className="fr-sub">
+                        {" — "}
+                        {joind(
+                          t.abuseipdb.usage_type,
+                          t.abuseipdb.domain,
+                          t.abuseipdb.last_reported_at && `last reported ${d10(t.abuseipdb.last_reported_at)}`,
+                          t.abuseipdb.is_tor && "Tor",
+                          t.abuseipdb.is_whitelisted && "whitelisted"
+                        )}
+                      </span>
+                    ) : null}
+                  </Row>
+                ) : null}
+                {t?.greynoise ? (
+                  <Row label="GreyNoise">
+                    {joind(
+                      t.greynoise.classification || "unknown",
+                      t.greynoise.noise && "internet noise",
+                      t.greynoise.riot && "benign infra",
+                      t.greynoise.name,
+                      t.greynoise.last_seen && `last seen ${d10(t.greynoise.last_seen)}`
+                    )}
+                  </Row>
+                ) : null}
+                {t?.ipqs ? (
+                  <Row label="IPQualityScore">
+                    <span className={t.ipqs.fraud_score >= 75 ? "fr-bad" : undefined}>{t.ipqs.fraud_score}/100 fraud</span>
+                    {(t.ipqs.abuse_velocity && t.ipqs.abuse_velocity !== "none") || t.ipqs.country_code ? (
+                      <span className="fr-sub">
+                        {" — "}
+                        {joind(
+                          t.ipqs.abuse_velocity && t.ipqs.abuse_velocity !== "none" && `abuse velocity ${t.ipqs.abuse_velocity}`,
+                          t.ipqs.country_code
+                        )}
+                      </span>
+                    ) : null}
+                  </Row>
+                ) : null}
+                {t?.pulsedive && t.pulsedive.risk && t.pulsedive.risk !== "unknown" ? (
+                  <Row label="Pulsedive">
+                    {t.pulsedive.risk}
+                    {t.pulsedive.threats?.length ? ` · threats: ${t.pulsedive.threats.join(", ")}` : ""}
+                    {t.pulsedive.feeds?.length ? (
+                      <span className="fr-sub"> — feeds: {t.pulsedive.feeds.join(", ")}</span>
+                    ) : null}
+                    {t.pulsedive.last_seen ? <span className="fr-sub"> — last seen {t.pulsedive.last_seen}</span> : null}
+                  </Row>
+                ) : null}
+              </dl>
+            </>
+          ) : null}
 
-            {enr!.tags?.length ? (
-              <Row label="Tags">
-                <Chips items={enr!.tags} />
-              </Row>
-            ) : null}
+          {/* ---------------- Threat feeds ---------------- */}
+          {hasFeeds ? (
+            <>
+              <SubHead>◇ Threat feeds</SubHead>
+              <dl className="fr-xref-grid">
+                {t?.otx && t.otx.pulse_count > 0 ? (
+                  <Row label={`AlienVault OTX · ${t.otx.pulse_count}`}>{(t.otx.pulse_names ?? []).join(" · ") || "—"}</Row>
+                ) : null}
+                {t?.threatfox && t.threatfox.ioc_count > 0 ? (
+                  <Row label={`ThreatFox · ${t.threatfox.ioc_count}`}>
+                    <div className="fr-iocs">
+                      {(t.threatfox.iocs ?? []).map((i, n) => (
+                        <div key={i.ioc + n} className="fr-ioc">
+                          <span className="fr-bad">{i.malware || i.threat_type || "IOC"}</span>
+                          {joind(
+                            i.threat_type && i.malware ? i.threat_type : undefined,
+                            i.confidence_level ? `${i.confidence_level}% conf` : undefined,
+                            i.first_seen && `seen ${d10(i.first_seen)}`
+                          )
+                            ? " · " +
+                              joind(
+                                i.threat_type && i.malware ? i.threat_type : undefined,
+                                i.confidence_level ? `${i.confidence_level}% conf` : undefined,
+                                i.first_seen && `seen ${d10(i.first_seen)}`
+                              )
+                            : ""}
+                          <span className="fr-ioc-val mono"> {i.ioc}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </Row>
+                ) : null}
+              </dl>
+            </>
+          ) : null}
 
-            {flags.length ? (
-              <Row label="Flags">
-                <Chips items={flags} kind="flag" />
-              </Row>
-            ) : null}
-
-            {/* --- reputation --- */}
-            {t?.virustotal ? (
-              <Row label="VirusTotal">
-                <span className={t.virustotal.malicious > 0 ? "fr-bad" : undefined}>
-                  {t.virustotal.malicious} malicious · {t.virustotal.suspicious} suspicious ·{" "}
-                  {t.virustotal.harmless} harmless
-                </span>
-              </Row>
-            ) : null}
-            {t?.abuseipdb ? (
-              <Row label="AbuseIPDB">
-                <span className={t.abuseipdb.abuse_confidence >= 25 ? "fr-bad" : undefined}>
-                  {t.abuseipdb.abuse_confidence}% confidence · {t.abuseipdb.total_reports} reports
-                  {t.abuseipdb.is_whitelisted ? " · whitelisted" : ""}
-                </span>
-              </Row>
-            ) : null}
-            {t?.greynoise ? (
-              <Row label="GreyNoise">
-                {t.greynoise.classification || "unknown"}
-                {t.greynoise.riot ? " · benign infra" : ""}
-                {t.greynoise.name ? ` · ${t.greynoise.name}` : ""}
-              </Row>
-            ) : null}
-            {t?.ipqs ? (
-              <Row label="Fraud score">
-                <span className={t.ipqs.fraud_score >= 75 ? "fr-bad" : undefined}>
-                  {t.ipqs.fraud_score}/100
-                  {t.ipqs.abuse_velocity && t.ipqs.abuse_velocity !== "none"
-                    ? ` · abuse velocity ${t.ipqs.abuse_velocity}`
-                    : ""}
-                </span>
-              </Row>
-            ) : null}
-
-            {/* --- threat feeds --- */}
-            {t?.otx && t.otx.pulse_count > 0 ? (
-              <Row label={`OTX · ${t.otx.pulse_count} pulse${t.otx.pulse_count > 1 ? "s" : ""}`}>
-                {(t.otx.pulse_names ?? []).slice(0, 8).join(" · ") || "—"}
-              </Row>
-            ) : null}
-            {t?.threatfox && t.threatfox.ioc_count > 0 ? (
-              <Row label={`ThreatFox · ${t.threatfox.ioc_count} IOC${t.threatfox.ioc_count > 1 ? "s" : ""}`}>
-                <span className="fr-bad">
-                  {(t.threatfox.iocs ?? [])
-                    .map((i) => i.malware || i.threat_type)
-                    .filter(Boolean)
-                    .slice(0, 6)
-                    .join(" · ") || "flagged"}
-                </span>
-              </Row>
-            ) : null}
-            {t?.pulsedive && t.pulsedive.risk && t.pulsedive.risk !== "unknown" ? (
-              <Row label="Pulsedive">
-                {t.pulsedive.risk}
-                {t.pulsedive.threats?.length ? ` · ${t.pulsedive.threats.slice(0, 5).join(", ")}` : ""}
-              </Row>
-            ) : null}
-
-            {/* --- ownership / origin --- */}
-            {enr!.org ? <Row label="Operator">{[enr!.org, enr!.asn].filter(Boolean).join(" · ")}</Row> : null}
-            {t?.bgp?.asn ? (
-              <Row label="ASN">
-                {["AS" + t.bgp.asn, t.bgp.asn_name, t.bgp.rir].filter(Boolean).join(" · ")}
-                {t.bgp.prefixes?.length ? ` · ${t.bgp.prefixes.slice(0, 4).join(", ")}` : ""}
-              </Row>
-            ) : null}
-            {!enr!.org && t?.ipapi?.isp ? <Row label="Operator">{t.ipapi.isp}</Row> : null}
-            {t?.ipapi && (t.ipapi.city || t.ipapi.country) ? (
-              <Row label="Origin">{[t.ipapi.city, t.ipapi.region, t.ipapi.country].filter(Boolean).join(", ")}</Row>
-            ) : enr!.city || enr!.country ? (
-              <Row label="Origin">{[enr!.city, enr!.country].filter(Boolean).join(", ")}</Row>
-            ) : null}
-            {enr!.hostnames?.length ? <Row label="Hostnames">{enr!.hostnames.join(", ")}</Row> : null}
-            {lastSeen ? <Row label="Last seen">{lastSeen}</Row> : null}
-          </dl>
+          {/* ---------------- Network & ownership ---------------- */}
+          {hasNet ? (
+            <>
+              <SubHead>◇ Network &amp; ownership</SubHead>
+              <dl className="fr-xref-grid">
+                {enr!.org ? <Row label="Operator">{joind(enr!.org, enr!.asn)}</Row> : null}
+                {t?.bgp?.asn ? (
+                  <Row label="ASN (BGP)">
+                    {joind("AS" + t.bgp.asn, t.bgp.asn_name, t.bgp.asn_description, t.bgp.rir && `RIR ${t.bgp.rir}`)}
+                    {t.bgp.prefixes?.length ? <span className="fr-sub"> — {t.bgp.prefixes.join(", ")}</span> : null}
+                  </Row>
+                ) : null}
+                {t?.ipapi ? (
+                  <Row label="ip-api">{joind(t.ipapi.isp, [t.ipapi.city, t.ipapi.region, t.ipapi.country].filter(Boolean).join(", "))}</Row>
+                ) : enr!.city || enr!.country ? (
+                  <Row label="Origin">{[enr!.city, enr!.country].filter(Boolean).join(", ")}</Row>
+                ) : null}
+                {t?.ipinfo ? (
+                  <Row label="IPinfo">
+                    {joind(
+                      t.ipinfo.hostname,
+                      t.ipinfo.org,
+                      [t.ipinfo.city, t.ipinfo.region, t.ipinfo.country].filter(Boolean).join(", ") || undefined,
+                      t.ipinfo.timezone
+                    ) || "—"}
+                  </Row>
+                ) : null}
+                {enr!.hostnames?.length ? <Row label="Hostnames">{enr!.hostnames.join(", ")}</Row> : null}
+                {shodanLastSeen ? <Row label="Last seen">{shodanLastSeen}</Row> : null}
+              </dl>
+            </>
+          ) : null}
 
           <div className="fr-xref-attr mono">
+            {enr!.sources?.length ? <span>sources: {enr!.sources.join(", ")} · </span> : null}
             data via Shodan · InternetDB · ip-api · RIPEstat · VirusTotal · AbuseIPDB · GreyNoise ·
-            AlienVault OTX · ThreatFox · IPQualityScore · Pulsedive · IPinfo.{" "}
-            Reputation is third-party and may be wrong —{" "}
+            AlienVault OTX · ThreatFox · IPQualityScore · Pulsedive · IPinfo. Reputation is
+            third-party and may be wrong —{" "}
             <a href="mailto:abuse@verdantprotocol.com?subject=Reputation%20dispute">dispute it</a>.
           </div>
         </>
