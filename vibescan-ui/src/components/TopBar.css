@@ -6,9 +6,9 @@
   background: linear-gradient(180deg, rgba(21, 23, 27, 0.94), rgba(21, 23, 27, 0.80));
   backdrop-filter: blur(10px);
 }
-.topbar-inner { display: flex; align-items: baseline; height: 58px; gap: 28px; }
+.topbar-inner { display: flex; align-items: center; height: 58px; gap: 28px; }
 
-.brand { display: flex; align-items: baseline; gap: 0; align-self: center; }
+.brand { display: flex; align-items: baseline; gap: 0; }
 .brand-mark { font-size: 22px; font-weight: 600; color: var(--ink); }
 .brand-accent { font-size: 22px; font-weight: 600; color: var(--accent); }
 
