@@ -100,7 +100,7 @@ export default function StatsPage() {
               <div className="tile-num display">{s.totals.services.toLocaleString()}</div>
             </div>
             <div className="tile panel hud tile-insecure">
-              <div className="tile-label eyebrow">Plain HTTP</div>
+              <div className="tile-label eyebrow">Cleartext HTTP</div>
               <div className="tile-num display insecure">{insecurePct}%</div>
               <div className="tile-bar">
                 <span className="tile-bar-fill" style={{ width: `${insecurePct}%` }} />

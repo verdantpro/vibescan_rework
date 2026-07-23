@@ -8,9 +8,14 @@
 }
 .topbar-inner { display: flex; align-items: center; height: 58px; gap: 28px; }
 
-.brand { display: flex; align-items: baseline; gap: 8px; }
-.brand-mark { font-size: 18px; letter-spacing: 0.04em; color: var(--ink); }
-.brand-proto { font-size: 12px; color: var(--cyan); letter-spacing: 0.05em; }
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  letter-spacing: 0.06em;
+}
+.brand-mark { font-size: 18px; color: var(--ink); }
+.brand-accent { font-size: 18px; color: var(--cyan); }
 
 .nav { display: flex; gap: 4px; margin-right: auto; }
 .nav-link {

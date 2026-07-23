@@ -1,7 +1,7 @@
 # vibescan-ui
 
-The new **What's on HTTP?** frontend — a futuristic *recon console* for the open
-internet. React + TypeScript (Vite), talking to the Go v2 read APIs.
+**vibescan** frontend — recon console for HTTP/HTTPS discovery. React + TypeScript
+(Vite), talking to the Go v2 read APIs.
 
 In production the built `dist/` is **embedded** into the `vibescan-go` collector
 binary (see `vibescan-go/Dockerfile` and `vibescan-go/internal/web`) and served

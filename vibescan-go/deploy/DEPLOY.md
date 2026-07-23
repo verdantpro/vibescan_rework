@@ -37,7 +37,7 @@ One process serves everything on the web host: **ingest API + v2 read APIs + emb
 |---|---|---|
 | `ACCOUNT_ID` | your 12-digit AWS account id | `123456789012` |
 | `REGION` | east-coast region (match EC2 + Atlas + S3) | `us-east-1` |
-| `YOUR_DOMAIN` | site hostname | `whatson.example.com` |
+| `YOUR_DOMAIN` | site hostname | `vibescan.example.com` |
 | `YOUR_IP` | your admin IP (for SSH allow) | `203.0.113.7` |
 
 **On your laptop:**
@@ -310,7 +310,7 @@ curl -sS https://YOUR_DOMAIN/api/health      # {"status":"ok","service":"vibesca
 curl -sS https://YOUR_DOMAIN/api/v2/stats    # totals: hosts 0, services 0 until agents submit
 ```
 
-Open `https://YOUR_DOMAIN/` → the recon console loads (empty until the scanner runs).
+Open `https://YOUR_DOMAIN/` → the vibescan console loads (empty until the scanner runs).
 
 Useful read endpoints (no auth yet):
 

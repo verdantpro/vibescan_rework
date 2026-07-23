@@ -65,14 +65,14 @@ export default function Console() {
   return (
     <div className="console wrap">
       <div className="console-head">
-        <div className="eyebrow">◊ Recon console · open internet</div>
+        <div className="eyebrow">◊ vibescan · live acquisition</div>
         <h1 className="console-h1 display">
           {insecure != null ? insecure.toLocaleString() : "—"}{" "}
-          <span className="console-h1-sub">services exposed over plain HTTP</span>
+          <span className="console-h1-sub">cleartext HTTP services on record</span>
         </h1>
         <p className="console-lede dim">
-          A crowdsourced census of what random machines are broadcasting to the open web.
-          Acquire a live signal, or scan the {hosts != null ? hosts.toLocaleString() : ""} hosts on record.
+          Random IPv4 discovery on common web ports — banners, screenshots, and geo.
+          Acquire a signal, or browse the {hosts != null ? hosts.toLocaleString() : ""} hosts indexed so far.
         </p>
       </div>
 
