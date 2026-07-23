@@ -71,8 +71,8 @@ export default function WorldMap({ points }: { points: MapPoint[] }) {
         </g>
       </svg>
       <div className="wm-legend mono">
-        <span><i className="dot cyan" /> secure</span>
-        <span><i className="dot red" /> insecure</span>
+        <span><i className="dot cyan" /> HTTPS</span>
+        <span><i className="dot red" /> HTTP</span>
         <span className="dim">{points.length} origins</span>
       </div>
     </div>

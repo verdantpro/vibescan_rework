@@ -26,7 +26,11 @@ export default function SignalCard({ t }: { t: Tile }) {
           </span>
         </div>
         <div className="row spread card-sub">
-          <span className="mono dim">{t.whois}</span>
+          {t.whois && t.whois !== "unknown" ? (
+            <span className="mono dim">{t.whois}</span>
+          ) : (
+            <span className="mono dim">{t.geo?.city || t.geo?.country || "—"}</span>
+          )}
           {t.geo?.country_iso && <span className="mono dim">{t.geo.country_iso}</span>}
         </div>
       </div>

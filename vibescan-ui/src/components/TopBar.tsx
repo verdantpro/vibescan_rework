@@ -49,7 +49,7 @@ export default function TopBar() {
         <div className="topbar-meta mono">
           {insecure != null && (
             <span className="insecure-count">
-              <span className="insecure">▲</span> {insecure.toLocaleString()} insecure
+              <span className="insecure">▲</span> {insecure.toLocaleString()} cleartext
             </span>
           )}
           <span className="clock">

@@ -81,8 +81,10 @@ func SplitPhashChunks(phashHex string) map[string]string {
 	}
 }
 
-// ExtractProduct pulls the product name from a service banner,
-// mirroring common/shared_utils.py:extract_product.
+// ExtractProduct pulls a short display name from a service banner.
+// Compatible with the Python extract_product inputs (product:/server: lines)
+// but intentionally cleaner for UI: strips nmap "version:" / "extrainfo:"
+// tails and returns a concise token (e.g. "nginx", "Squid", "Apache").
 func ExtractProduct(banner string) string {
 	banner = strings.TrimSpace(banner)
 	if banner == "" {
@@ -93,15 +95,30 @@ func ExtractProduct(banner string) string {
 		line = strings.TrimRight(line, "\r")
 		lower := strings.ToLower(line)
 		if strings.HasPrefix(lower, "product:") {
-			return strings.TrimSpace(line[len("product:"):])
+			return cleanProduct(strings.TrimSpace(line[len("product:"):]))
 		}
 		if strings.HasPrefix(lower, "server:") {
-			prod := strings.TrimSpace(line[len("server:"):])
-			return firstToken(prod)
+			return cleanProduct(strings.TrimSpace(line[len("server:"):]))
 		}
 	}
 	first := strings.TrimRight(lines[0], "\r")
-	return firstToken(first)
+	return cleanProduct(first)
+}
+
+// cleanProduct normalizes nmap-ish product strings into a short label.
+func cleanProduct(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	lower := strings.ToLower(s)
+	for _, sep := range []string{" extrainfo:", " version:", " ("} {
+		if i := strings.Index(lower, sep); i >= 0 {
+			s = strings.TrimSpace(s[:i])
+			lower = strings.ToLower(s)
+		}
+	}
+	return firstToken(s)
 }
 
 // firstToken returns the leading token split on '/' then ' ', matching the

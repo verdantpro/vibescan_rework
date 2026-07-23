@@ -1,0 +1,4 @@
+# vibescan — public discovery console
+User-agent: *
+Allow: /
+Disallow: /api/

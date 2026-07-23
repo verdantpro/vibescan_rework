@@ -11,7 +11,19 @@ interface Props {
   onToggleAuto: () => void;
 }
 
-function Line({ label, value, accent }: { label: string; value?: string | number | null; accent?: boolean }) {
+function Line({
+  label,
+  value,
+  accent,
+  hideEmpty,
+}: {
+  label: string;
+  value?: string | number | null;
+  accent?: boolean;
+  /** When true, omit the row entirely if value is empty/unknown. */
+  hideEmpty?: boolean;
+}) {
+  if (hideEmpty && (value == null || value === "" || value === "unknown")) return null;
   return (
     <div className="tl-line">
       <span className="tl-label mono">{label}</span>
@@ -61,12 +73,12 @@ export default function Viewport({ detail, loading, auto, onAcquire, onToggleAut
         <Line label="CALL SIGN" value={s ? `${s.ip}:${s.port}` : null} accent />
         <Line label="PROTOCOL" value={s ? (s.secured ? "HTTPS" : "HTTP") : null} />
         <Line label="STATUS" value={s?.http_status} />
-        <Line label="SERVER" value={s?.product} />
-        <Line label="OPERATOR" value={s?.whois} />
-        <Line label="ORIGIN" value={place} />
-        <Line label="COORD" value={coords} />
-        <Line label="pHASH" value={s?.screenshot_phash} />
-        <Line label="DOM" value={s?.dom_hash} />
+        <Line label="SERVER" value={s?.product} hideEmpty />
+        <Line label="OPERATOR" value={s?.whois} hideEmpty />
+        <Line label="ORIGIN" value={place} hideEmpty />
+        <Line label="COORD" value={coords} hideEmpty />
+        <Line label="pHASH" value={s?.screenshot_phash} hideEmpty />
+        <Line label="DOM" value={s?.dom_hash} hideEmpty />
 
         <div className="vp-controls">
           <button className="btn btn-primary" onClick={onAcquire} disabled={loading}>

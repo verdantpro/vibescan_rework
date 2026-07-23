@@ -37,9 +37,13 @@ func TestDomStructureHash(t *testing.T) {
 
 func TestExtractProduct(t *testing.T) {
 	tests := map[string]string{
-		"HTTP/1.1 200 OK\r\nServer: nginx/1.18.0": "nginx",
-		"Apache/2.4.1 (Unix)":                     "Apache",
-		"":                                        "",
+		"HTTP/1.1 200 OK\r\nServer: nginx/1.18.0":                        "nginx",
+		"Apache/2.4.1 (Unix)":                                            "Apache",
+		"product: nginx version: 1.18.0 extrainfo: Ubuntu":               "nginx",
+		"product: Squid http proxy version: 3.5.20":                      "Squid",
+		"product: Amazon CloudFront httpd":                               "Amazon",
+		"Server: cloudflare":                                             "cloudflare",
+		"":                                                               "",
 	}
 	for in, want := range tests {
 		if got := ExtractProduct(in); got != want {

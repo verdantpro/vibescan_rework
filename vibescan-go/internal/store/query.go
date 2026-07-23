@@ -86,13 +86,77 @@ func listPipeline(match bson.D, offset, limit int) mongo.Pipeline {
 		}}},
 		bson.D{{Key: "$skip", Value: offset}},
 		bson.D{{Key: "$limit", Value: limit}},
-		bson.D{{Key: "$addFields", Value: bson.D{{Key: "has_fulltext", Value: bson.D{
-			{Key: "$gt", Value: bson.A{
-				bson.D{{Key: "$strLenCP", Value: bson.D{{Key: "$ifNull", Value: bson.A{"$fulltext", ""}}}}},
-				0,
-			}},
-		}}}}},
+		hasFulltextStage(),
 		bson.D{{Key: "$project", Value: bson.D{{Key: "fulltext", Value: 0}}}},
+	}
+}
+
+func hasFulltextStage() bson.D {
+	return bson.D{{Key: "$addFields", Value: bson.D{{Key: "has_fulltext", Value: bson.D{
+		{Key: "$gt", Value: bson.A{
+			bson.D{{Key: "$strLenCP", Value: bson.D{{Key: "$ifNull", Value: bson.A{"$fulltext", ""}}}}},
+			0,
+		}},
+	}}}}}
+}
+
+// galleryPipeline ranks feed tiles for human browsing:
+//  1. Prefer HTTP 200
+//  2. Prefer non-blank / non-placeholder screenshots (via pHash heuristics)
+//  3. At most one service per IPv4 /24 (reduces proxy-farm spam)
+//  4. Then recency
+func galleryPipeline(offset, limit int) mongo.Pipeline {
+	blankPhash := bson.A{
+		"",
+		"0000000000000000",
+		"8080000000000000",
+		"8080000000004000",
+		"0000400000000000",
+	}
+	return mongo.Pipeline{
+		bson.D{{Key: "$match", Value: hasCaptureMatch}},
+		bson.D{{Key: "$addFields", Value: bson.D{
+			{Key: "rank_status", Value: bson.D{{Key: "$cond", Value: bson.A{
+				bson.D{{Key: "$eq", Value: bson.A{"$http_status", 200}}},
+				0, 1,
+			}}}},
+			{Key: "rank_phash", Value: bson.D{{Key: "$cond", Value: bson.A{
+				bson.D{{Key: "$in", Value: bson.A{
+					bson.D{{Key: "$ifNull", Value: bson.A{"$screenshot_phash", ""}}},
+					blankPhash,
+				}}},
+				1, 0,
+			}}}},
+			// IPv4 /24 bucket: high 24 bits of the 32-bit address integer.
+			{Key: "net24", Value: bson.D{{Key: "$floor", Value: bson.D{
+				{Key: "$divide", Value: bson.A{"$ip", 256}},
+			}}}},
+		}}},
+		// Best candidate per /24 first (status, phash, then newest).
+		bson.D{{Key: "$sort", Value: bson.D{
+			{Key: "rank_status", Value: 1},
+			{Key: "rank_phash", Value: 1},
+			{Key: "updated_at", Value: -1},
+		}}},
+		bson.D{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: "$net24"},
+			{Key: "doc", Value: bson.D{{Key: "$first", Value: "$$ROOT"}}},
+		}}},
+		bson.D{{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$doc"}}}},
+		bson.D{{Key: "$sort", Value: bson.D{
+			{Key: "rank_status", Value: 1},
+			{Key: "rank_phash", Value: 1},
+			{Key: "updated_at", Value: -1},
+		}}},
+		bson.D{{Key: "$skip", Value: offset}},
+		bson.D{{Key: "$limit", Value: limit}},
+		hasFulltextStage(),
+		bson.D{{Key: "$project", Value: bson.D{
+			{Key: "fulltext", Value: 0},
+			{Key: "rank_status", Value: 0},
+			{Key: "rank_phash", Value: 0},
+			{Key: "net24", Value: 0},
+		}}},
 	}
 }
 
@@ -113,13 +177,14 @@ func (m *Mongo) aggregateDocs(ctx context.Context, pipeline mongo.Pipeline, maxT
 	return docs, nil
 }
 
-// Gallery returns the most recent captured services.
+// Gallery returns ranked captured services for the feed/console (screenshots
+// only). Prefer HTTP 200, interesting screenshots, and one host per /24.
 func (m *Mongo) Gallery(ctx context.Context, o ListOpts) ([]ServiceDoc, error) {
-	match := bson.D{}
-	if o.ScreensOnly {
-		match = hasCaptureMatch
+	// ScreensOnly=false is unused by the UI; still honor a simple recency list.
+	if !o.ScreensOnly {
+		return m.aggregateDocs(ctx, listPipeline(bson.D{}, o.Offset, o.Limit), o.MaxTimeMS)
 	}
-	return m.aggregateDocs(ctx, listPipeline(match, o.Offset, o.Limit), o.MaxTimeMS)
+	return m.aggregateDocs(ctx, galleryPipeline(o.Offset, o.Limit), o.MaxTimeMS)
 }
 
 // Search returns services matching a free-text query and/or filters.

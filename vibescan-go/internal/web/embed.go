@@ -14,6 +14,9 @@ import (
 //go:embed dist
 var distFS embed.FS
 
+//go:embed robots.txt
+var robotsTXT []byte
+
 // Handler serves the embedded SPA. Real asset requests are served from dist/;
 // any other path falls back to index.html so client routes (/feed, /signal/…)
 // resolve on a hard refresh.
@@ -26,9 +29,22 @@ func Handler() http.Handler {
 	index, _ := fs.ReadFile(sub, "index.html")
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Explicit non-SPA endpoints (avoid HTML shell for crawlers).
+		switch r.URL.Path {
+		case "/robots.txt":
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			w.Header().Set("Cache-Control", "public, max-age=3600")
+			_, _ = w.Write(robotsTXT)
+			return
+		}
+
 		name := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
 		if name != "" {
 			if info, statErr := fs.Stat(sub, name); statErr == nil && !info.IsDir() {
+				// Hashed Vite assets under assets/ are immutable.
+				if strings.HasPrefix(name, "assets/") {
+					w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+				}
 				fileServer.ServeHTTP(w, r)
 				return
 			}
