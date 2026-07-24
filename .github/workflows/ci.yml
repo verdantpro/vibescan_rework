@@ -20,7 +20,7 @@ jobs:
       run:
         working-directory: vibescan-go
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with:
           go-version-file: vibescan-go/go.mod
@@ -44,7 +44,7 @@ jobs:
       run:
         working-directory: vibescan-ui
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -60,7 +60,7 @@ jobs:
     name: Trivy — dependency & secret scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # vuln + secret only. Dockerfile-misconfig scanning is intentionally omitted:
       # the scanner agent image (Dockerfile.agent) runs as root because nmap needs
       # raw-socket privileges, which trips the "non-root user" check as a false
