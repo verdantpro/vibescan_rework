@@ -28,7 +28,10 @@ jobs:
       - name: go vet
         run: go vet ./...
       - name: go test
-        run: go test ./...
+        # -short skips the browser/capture tests, which need a real headless
+        # Chromium (present on the scanner host, not on CI runners). Those tests
+        # already guard themselves with testing.Short().
+        run: go test -short ./...
       - name: govulncheck
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest

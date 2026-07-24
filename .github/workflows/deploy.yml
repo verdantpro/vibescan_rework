@@ -45,7 +45,9 @@ jobs:
         run: go vet ./...
       - name: go test
         working-directory: vibescan-go
-        run: go test ./...
+        # -short skips browser/capture tests that need a real headless Chromium
+        # (not available on CI runners); they self-guard with testing.Short().
+        run: go test -short ./...
       - uses: actions/setup-node@v4
         with:
           node-version: 22
