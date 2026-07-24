@@ -131,10 +131,13 @@ export default function StatsPage() {
                 {insecure.toLocaleString()} insecure · {secure.toLocaleString()} https
               </div>
             </div>
-            <div className="tile panel hud">
-              <div className="tile-label eyebrow">Exposed</div>
+            <div
+              className="tile panel hud"
+              title="Services whose host is associated with at least one CVE by Shodan InternetDB. This is a third-party association, not a confirmed or verified vulnerability."
+            >
+              <div className="tile-label eyebrow">CVE-associated</div>
               <div className="tile-num display insecure">{s.exposed_services.toLocaleString()}</div>
-              <div className="tile-sub mono dim">services with ≥1 known CVE · via Shodan</div>
+              <div className="tile-sub mono dim">host has ≥1 CVE · Shodan, provider-reported</div>
             </div>
           </div>
 

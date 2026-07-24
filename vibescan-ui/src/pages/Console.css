@@ -16,6 +16,14 @@
   letter-spacing: 0;
   margin-top: 6px;
 }
+.console-h1-scope {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+  vertical-align: middle;
+}
 .console-lede { max-width: 640px; font-size: 14px; }
 
 .console-section-head { margin-bottom: 14px; }

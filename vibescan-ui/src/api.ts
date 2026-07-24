@@ -39,6 +39,8 @@ export interface Tile {
   tags?: string[];
   extra_ports?: number[];
   verdict?: string;
+  sources?: string[];
+  enriched_at?: string;
 }
 
 export interface Enrichment {

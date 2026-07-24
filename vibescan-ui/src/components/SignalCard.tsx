@@ -1,9 +1,14 @@
 import { Link } from "react-router-dom";
 import { imageURL, type Tile } from "../api";
+import { timeAgo } from "../lib/time";
 import StatusBadge from "./StatusBadge";
 import "./SignalCard.css";
 
 export default function SignalCard({ t }: { t: Tile }) {
+  const flagged = t.verdict === "malicious" || t.verdict === "suspicious";
+  const provenance = flagged || (t.vuln_count ?? 0) > 0;
+  const srcLabel = t.sources && t.sources.length ? t.sources.join(", ") : "third-party feeds";
+  const enriched = timeAgo(t.enriched_at);
   return (
     <Link className="card hud" to={`/signal/${t.ip}/${t.port}`}>
       <div className="card-shot">
@@ -16,14 +21,17 @@ export default function SignalCard({ t }: { t: Tile }) {
           {t.ip}:{t.port}
         </span>
         {t.vuln_count ? (
-          <span className="card-vuln mono" title={`${t.vuln_count} known CVE${t.vuln_count > 1 ? "s" : ""} (Shodan)`}>
+          <span
+            className="card-vuln mono"
+            title={`${t.vuln_count} CVE${t.vuln_count > 1 ? "s" : ""} associated with this host by ${srcLabel} — provider-reported, not independently verified`}
+          >
             ⚠ {t.vuln_count} CVE{t.vuln_count > 1 ? "s" : ""}
           </span>
         ) : null}
-        {t.verdict === "malicious" || t.verdict === "suspicious" ? (
+        {flagged ? (
           <span
             className={`card-verdict mono ${t.verdict}`}
-            title={`Reputation: ${t.verdict === "malicious" ? "potentially malicious" : "suspicious"} (third-party feeds, may be inaccurate)`}
+            title={`Reputation match from ${srcLabel}${enriched ? ` (${enriched})` : ""} — not independently verified, may be inaccurate`}
           >
             {t.verdict === "malicious" ? "⚑ poss. malicious" : "⚑ suspect"}
           </span>
@@ -49,6 +57,12 @@ export default function SignalCard({ t }: { t: Tile }) {
           )}
           {t.geo?.country_iso && <span className="mono dim">{t.geo.country_iso}</span>}
         </div>
+        {provenance && (
+          <div className="card-provenance mono" title="Reputation and CVE data come from third-party feeds and are not independently verified.">
+            {srcLabel}
+            {enriched ? ` · ${enriched}` : ""} · unverified
+          </div>
+        )}
       </div>
     </Link>
   );

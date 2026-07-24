@@ -91,9 +91,10 @@ export default function Console() {
     <div className="console wrap">
       <div className="console-head">
         <div className="eyebrow">◊ vibescan · live acquisition</div>
-        <h1 className="console-h1 display">
+        <h1 className="console-h1 display" title="Total cleartext HTTP services captured across all time">
           {insecure != null ? insecure.toLocaleString() : "—"}{" "}
           <span className="console-h1-sub">cleartext HTTP services on record</span>
+          <span className="console-h1-scope mono"> · all time</span>
         </h1>
         <p className="console-lede dim">
           Random IPv4 discovery on common web ports — banners, screenshots, and geo.

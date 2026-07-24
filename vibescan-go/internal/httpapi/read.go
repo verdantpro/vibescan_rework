@@ -39,6 +39,8 @@ type tile struct {
 	Tags       []string `json:"tags,omitempty"`
 	ExtraPorts []int    `json:"extra_ports,omitempty"`
 	Verdict    string   `json:"verdict,omitempty"`
+	Sources    []string `json:"sources,omitempty"`     // enrichment feeds that contributed
+	EnrichedAt string   `json:"enriched_at,omitempty"` // RFC3339, last enrichment time
 }
 
 // resolveImageURL returns the best image URL for a capture: the R2 public URL
@@ -83,7 +85,17 @@ func (s *Server) toTile(d store.ServiceDoc) tile {
 		Tags:            d.ShodanTags,
 		ExtraPorts:      d.ExtraPorts,
 		Verdict:         d.Verdict,
+		Sources:         d.Sources,
+		EnrichedAt:      enrichedAtStr(d.EnrichedAt),
 	}
+}
+
+// enrichedAtStr renders the last-enrichment time as RFC3339, or "" if unset.
+func enrichedAtStr(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339)
 }
 
 // resolveGeo prefers the stored geoip subdoc; if missing (e.g. mmdb was absent
