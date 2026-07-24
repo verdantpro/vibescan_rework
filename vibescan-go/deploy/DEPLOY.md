@@ -480,20 +480,53 @@ aws ssm get-command-invocation --command-id COMMAND_ID --instance-id i-0abc…
 
 **5. Optional — keep SSH locked.** Your current rule (`YOUR_IP/32` on 22) is fine; you do **not** need `0.0.0.0/0` for CI.
 
-### B. One-time: GitHub secrets
+### B. One-time: GitHub OIDC + assumable IAM role (no static keys)
 
-Repo → **Settings → Secrets and variables → Actions**:
+The workflow authenticates to AWS with **GitHub OIDC** — it assumes a role via a
+short-lived token instead of long-lived access keys. This completes the "no static
+credentials" story (matching the no-inbound-SSH SSM transport).
+
+**B.1 — Create the GitHub OIDC identity provider** (once per AWS account). IAM →
+**Identity providers → Add provider → OpenID Connect**:
+
+- Provider URL: `https://token.actions.githubusercontent.com`
+- Audience: `sts.amazonaws.com`
+
+(Or CLI: `aws iam create-open-id-connect-provider --url https://token.actions.githubusercontent.com --client-id-list sts.amazonaws.com`.)
+
+**B.2 — Create the deploy role** with a trust policy that only lets *this* repo's
+workflows assume it. Replace `ACCOUNT_ID` and `OWNER/REPO`:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": { "Federated": "arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com" },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": { "token.actions.githubusercontent.com:aud": "sts.amazonaws.com" },
+        "StringLike": { "token.actions.githubusercontent.com:sub": "repo:OWNER/REPO:ref:refs/heads/main" }
+      }
+    }
+  ]
+}
+```
+
+**B.3 — GitHub secrets.** Repo → **Settings → Secrets and variables → Actions**:
 
 | Secret | Value |
 |--------|--------|
 | `AWS_ACCOUNT_ID` | 12-digit account id |
-| `AWS_ACCESS_KEY_ID` | CI IAM user access key |
-| `AWS_SECRET_ACCESS_KEY` | matching secret |
+| `AWS_DEPLOY_ROLE_ARN` | `arn:aws:iam::ACCOUNT_ID:role/vibescan-deploy` (the role from B.2) |
 | `EC2_INSTANCE_ID` | `i-0abc…` (from step A.3) |
 
-You do **not** need `EC2_HOST` / `EC2_USER` / `EC2_SSH_KEY` for this workflow.
+`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` are **no longer used** — delete them.
+You also do **not** need `EC2_HOST` / `EC2_USER` / `EC2_SSH_KEY`.
 
-**CI IAM user policy** (ECR push + SSM Run Command). Replace `ACCOUNT_ID` and `INSTANCE_ID`:
+**Permissions policy** to attach to the deploy role (ECR push + SSM Run Command).
+Replace `ACCOUNT_ID` and `INSTANCE_ID`:
 
 ```json
 {
@@ -548,7 +581,14 @@ Host still needs `~/deploy` with a filled `.env` + compose files + optional `Geo
 
 ### D. Rollback
 
-Set `IMAGE=` on the host to a prior ECR tag (via one-off SSM command or SSH from home) and:
+**Automatic:** the deploy job now rolls back on its own. If the new image fails to
+come up, the image-tag check fails, the **migration fails**, or the post-deploy
+health check fails, the workflow rewrites `IMAGE=` back to the previously-running
+image and `up -d`s it before reporting failure. (Migrations are no longer run with
+`|| true`, so a failed migration fails the deploy instead of sailing on silently.)
+
+**Manual** (e.g. to revert a healthy-but-wrong deploy): set `IMAGE=` on the host to a
+prior ECR tag (via one-off SSM command or SSH from home) and:
 
 ```bash
 cd ~/deploy
