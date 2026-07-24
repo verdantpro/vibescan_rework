@@ -5,7 +5,7 @@
 #   docker build -f vibescan-go/Dockerfile -t vibescan .
 
 # --- stage 1: build the UI (relative API base → served same-origin) ---
-FROM node:22-alpine AS ui
+FROM node:26-alpine AS ui
 WORKDIR /ui
 COPY vibescan-ui/package.json vibescan-ui/package-lock.json ./
 RUN npm ci
