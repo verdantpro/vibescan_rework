@@ -27,6 +27,7 @@ type tile struct {
 	Whois           string     `json:"whois"`
 	ImageURL        string     `json:"image_url"`
 	CaptureHash     string     `json:"capture_hash"`
+	ThumbURL        string     `json:"thumb_url,omitempty"`
 	CaptureExt      string     `json:"capture_ext"`
 	HasFulltext     bool       `json:"has_fulltext"`
 	ScreenshotPhash string     `json:"screenshot_phash,omitempty"`
@@ -59,6 +60,15 @@ func (s *Server) resolveImageURL(d store.ServiceDoc) string {
 	return "/api/v2/image/" + d.IPStr + "/" + strconv.Itoa(d.Port)
 }
 
+// resolveThumbURL returns the public URL for a capture's JPEG thumbnail when one
+// was generated (R2 only), otherwise "" so the UI falls back to the full image.
+func (s *Server) resolveThumbURL(d store.ServiceDoc) string {
+	if strings.HasPrefix(d.Thumb, "r2:") && s.cfg.R2PublicURL != "" {
+		return s.cfg.R2PublicURL + "/" + d.Thumb[len("r2:"):]
+	}
+	return ""
+}
+
 func (s *Server) toTile(d store.ServiceDoc) tile {
 	ts := d.UpdatedAt
 	if ts.IsZero() {
@@ -73,6 +83,7 @@ func (s *Server) toTile(d store.ServiceDoc) tile {
 		Secured:         d.Secured,
 		Whois:           firstWhois(d.Whois),
 		ImageURL:        s.resolveImageURL(d),
+		ThumbURL:        s.resolveThumbURL(d),
 		CaptureHash:     d.CaptureHash,
 		CaptureExt:      d.CaptureExt,
 		HasFulltext:     d.HasFulltext,

@@ -13,7 +13,14 @@ export default function SignalCard({ t }: { t: Tile }) {
     <Link className="card hud" to={`/signal/${t.ip}/${t.port}`}>
       <div className="card-shot">
         {t.image_url ? (
-          <img src={imageURL(t.image_url)} alt="" loading="lazy" />
+          <img
+            src={imageURL(t.thumb_url || t.image_url)}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            width={1147}
+            height={720}
+          />
         ) : (
           <div className="card-noshot mono">NO SIGNAL</div>
         )}

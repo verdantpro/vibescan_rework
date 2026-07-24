@@ -27,6 +27,7 @@ export interface Tile {
   secured: boolean;
   whois: string;
   image_url: string;
+  thumb_url?: string;
   capture_hash: string;
   capture_ext: string;
   has_fulltext: boolean;

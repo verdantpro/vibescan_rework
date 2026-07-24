@@ -93,7 +93,14 @@ export default function Signal() {
             <span className="fr-tick bl"></span><span className="fr-tick br"></span>
             <div className="fr-exhibit-frame">
               {s.image_url ? (
-                <img src={imageURL(s.image_url)} alt={`Captured screenshot of ${s.ip}:${s.port}`} />
+                <img
+                  src={imageURL(s.image_url)}
+                  alt={`Captured screenshot of ${s.ip}:${s.port}`}
+                  width={1147}
+                  height={720}
+                  loading="lazy"
+                  decoding="async"
+                />
               ) : (
                 <div className="fr-noshot">No capture on record</div>
               )}

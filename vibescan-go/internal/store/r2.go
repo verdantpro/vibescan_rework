@@ -70,6 +70,27 @@ func ObjectKey(ipStr string, port int, ext string) string {
 	return fmt.Sprintf("%s/%s/%s-%d.%s", first, second, ipSafe, port, ext)
 }
 
+// ThumbObjectKey builds the R2 object key for a capture's thumbnail: the capture
+// key under a "thumb/" prefix with a .jpg extension (thumbnails are always JPEG).
+func ThumbObjectKey(ipStr string, port int) string {
+	return "thumb/" + ObjectKey(ipStr, port, "jpg")
+}
+
+// UploadThumb stores pre-encoded JPEG thumbnail bytes at the derived thumb key,
+// returning the key on success.
+func (r *R2) UploadThumb(ctx context.Context, jpegBytes []byte, ipStr string, port int) (string, error) {
+	key := ThumbObjectKey(ipStr, port)
+	_, err := r.client.PutObject(ctx, r.bucket, key, bytes.NewReader(jpegBytes), int64(len(jpegBytes)),
+		minio.PutObjectOptions{
+			ContentType:  "image/jpeg",
+			CacheControl: "public, max-age=31536000, immutable",
+		})
+	if err != nil {
+		return "", err
+	}
+	return key, nil
+}
+
 // Upload decodes a base64 capture and stores it at the derived object key,
 // returning the key on success (mirrors upload_capture_to_r2).
 func (r *R2) Upload(ctx context.Context, captureB64, ipStr string, port int, ext string) (string, error) {

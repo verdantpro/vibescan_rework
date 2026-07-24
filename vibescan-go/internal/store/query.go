@@ -23,6 +23,7 @@ type ServiceDoc struct {
 	Port            int                `bson:"port"`
 	Banner          string             `bson:"banner"`
 	Capture         string             `bson:"capture"`
+	Thumb           string             `bson:"thumb"`
 	CaptureHash     string             `bson:"capture_hash"`
 	CaptureExt      string             `bson:"capture_ext"`
 	HTTPStatus      *int               `bson:"http_status"`
