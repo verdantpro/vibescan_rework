@@ -7,6 +7,7 @@ import Search from "./pages/Search";
 import Stats from "./pages/Stats";
 import Signal from "./pages/Signal";
 import About from "./pages/About";
+import NotFound from "./pages/NotFound";
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/stats" element={<Stats />} />
           <Route path="/signal/:ip/:port" element={<Signal />} />
           <Route path="/about" element={<About />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
       <Footer />

@@ -4,6 +4,7 @@ package collector
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"strconv"
@@ -258,6 +259,7 @@ func (ing *Ingestor) uploadCaptures(ctx context.Context, entries []entry) {
 			key, err := ing.r2.Upload(ctx, e.capB64, e.ipStr, e.port, e.capExt)
 			if err == nil {
 				e.doc["capture"] = "r2:" + key
+				ing.uploadThumb(ctx, e)
 				return
 			}
 			if !ing.cfg.R2FallbackToMongo {
@@ -270,6 +272,26 @@ func (ing *Ingestor) uploadCaptures(ctx context.Context, entries []entry) {
 		}(e)
 	}
 	wg.Wait()
+}
+
+// uploadThumb generates a small JPEG thumbnail from the just-uploaded capture and
+// stores it in R2, recording a "thumb" reference on the doc. Thumbnails are a
+// best-effort optimization for the card grid: any failure is swallowed and the UI
+// falls back to the full-resolution capture.
+func (ing *Ingestor) uploadThumb(ctx context.Context, e *entry) {
+	raw, err := base64.StdEncoding.DecodeString(e.capB64)
+	if err != nil {
+		return
+	}
+	thumb, err := media.Thumbnail(raw, media.ThumbMaxWidth)
+	if err != nil {
+		return
+	}
+	key, err := ing.r2.UploadThumb(ctx, thumb, e.ipStr, e.port)
+	if err != nil {
+		return
+	}
+	e.doc["thumb"] = "r2:" + key
 }
 
 // persist writes entries to MongoDB in ingest-sized batches, buffering any that

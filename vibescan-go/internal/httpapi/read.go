@@ -27,6 +27,7 @@ type tile struct {
 	Whois           string     `json:"whois"`
 	ImageURL        string     `json:"image_url"`
 	CaptureHash     string     `json:"capture_hash"`
+	ThumbURL        string     `json:"thumb_url,omitempty"`
 	CaptureExt      string     `json:"capture_ext"`
 	HasFulltext     bool       `json:"has_fulltext"`
 	ScreenshotPhash string     `json:"screenshot_phash,omitempty"`
@@ -39,6 +40,8 @@ type tile struct {
 	Tags       []string `json:"tags,omitempty"`
 	ExtraPorts []int    `json:"extra_ports,omitempty"`
 	Verdict    string   `json:"verdict,omitempty"`
+	Sources    []string `json:"sources,omitempty"`     // enrichment feeds that contributed
+	EnrichedAt string   `json:"enriched_at,omitempty"` // RFC3339, last enrichment time
 }
 
 // resolveImageURL returns the best image URL for a capture: the R2 public URL
@@ -57,6 +60,15 @@ func (s *Server) resolveImageURL(d store.ServiceDoc) string {
 	return "/api/v2/image/" + d.IPStr + "/" + strconv.Itoa(d.Port)
 }
 
+// resolveThumbURL returns the public URL for a capture's JPEG thumbnail when one
+// was generated (R2 only), otherwise "" so the UI falls back to the full image.
+func (s *Server) resolveThumbURL(d store.ServiceDoc) string {
+	if strings.HasPrefix(d.Thumb, "r2:") && s.cfg.R2PublicURL != "" {
+		return s.cfg.R2PublicURL + "/" + d.Thumb[len("r2:"):]
+	}
+	return ""
+}
+
 func (s *Server) toTile(d store.ServiceDoc) tile {
 	ts := d.UpdatedAt
 	if ts.IsZero() {
@@ -71,6 +83,7 @@ func (s *Server) toTile(d store.ServiceDoc) tile {
 		Secured:         d.Secured,
 		Whois:           firstWhois(d.Whois),
 		ImageURL:        s.resolveImageURL(d),
+		ThumbURL:        s.resolveThumbURL(d),
 		CaptureHash:     d.CaptureHash,
 		CaptureExt:      d.CaptureExt,
 		HasFulltext:     d.HasFulltext,
@@ -83,7 +96,17 @@ func (s *Server) toTile(d store.ServiceDoc) tile {
 		Tags:            d.ShodanTags,
 		ExtraPorts:      d.ExtraPorts,
 		Verdict:         d.Verdict,
+		Sources:         d.Sources,
+		EnrichedAt:      enrichedAtStr(d.EnrichedAt),
 	}
+}
+
+// enrichedAtStr renders the last-enrichment time as RFC3339, or "" if unset.
+func enrichedAtStr(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339)
 }
 
 // resolveGeo prefers the stored geoip subdoc; if missing (e.g. mmdb was absent

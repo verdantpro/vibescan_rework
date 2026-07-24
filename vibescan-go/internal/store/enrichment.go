@@ -103,14 +103,19 @@ func (m *Mongo) DenormalizeEnrichment(ctx context.Context, ipInt int64, rec enri
 	if ports == nil {
 		ports = []int{}
 	}
+	sources := rec.Sources
+	if sources == nil {
+		sources = []string{}
+	}
 	_, err := m.results.UpdateMany(ctx,
 		bson.M{"ip": ipInt},
 		bson.M{"$set": bson.M{
-			"vuln_count":  len(rec.Vulns),
-			"shodan_tags": tags,
-			"extra_ports": ports,
-			"verdict":     rec.Verdict, // "" for keyless/worker; set on the deep path
-			"enriched_at": time.Now().UTC(),
+			"vuln_count":     len(rec.Vulns),
+			"shodan_tags":    tags,
+			"extra_ports":    ports,
+			"verdict":        rec.Verdict, // "" for keyless/worker; set on the deep path
+			"enrich_sources": sources,     // which feeds contributed (internetdb, shodan, …)
+			"enriched_at":    time.Now().UTC(),
 		}},
 	)
 	return err

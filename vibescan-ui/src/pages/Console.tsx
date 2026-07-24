@@ -4,6 +4,7 @@ import { api, type SignalDetail, type Stats, type Tile } from "../api";
 import Viewport from "../components/Viewport";
 import WorldMap, { type MapPoint } from "../components/WorldMap";
 import SignalCard from "../components/SignalCard";
+import { useMeta } from "../lib/meta";
 import "./Console.css";
 
 // Auto-acquire cadence. Kept as one constant so the interval and the button
@@ -11,6 +12,12 @@ import "./Console.css";
 const AUTO_SECONDS = 6;
 
 export default function Console() {
+  useMeta({
+    title: "VibeScan — Live Internet Discovery",
+    description:
+      "A live census of the reachable web: random public IPv4 discovery, HTTP capture, geolocation, and threat-intel enrichment.",
+    path: "/",
+  });
   const [detail, setDetail] = useState<SignalDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [auto, setAuto] = useState(false);
@@ -84,9 +91,10 @@ export default function Console() {
     <div className="console wrap">
       <div className="console-head">
         <div className="eyebrow">◊ vibescan · live acquisition</div>
-        <h1 className="console-h1 display">
+        <h1 className="console-h1 display" title="Total cleartext HTTP services captured across all time">
           {insecure != null ? insecure.toLocaleString() : "—"}{" "}
           <span className="console-h1-sub">cleartext HTTP services on record</span>
+          <span className="console-h1-scope mono"> · all time</span>
         </h1>
         <p className="console-lede dim">
           Random IPv4 discovery on common web ports — banners, screenshots, and geo.

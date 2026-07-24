@@ -23,6 +23,7 @@ type ServiceDoc struct {
 	Port            int                `bson:"port"`
 	Banner          string             `bson:"banner"`
 	Capture         string             `bson:"capture"`
+	Thumb           string             `bson:"thumb"`
 	CaptureHash     string             `bson:"capture_hash"`
 	CaptureExt      string             `bson:"capture_ext"`
 	HTTPStatus      *int               `bson:"http_status"`
@@ -42,10 +43,12 @@ type ServiceDoc struct {
 	GeoIP           *geo.GeoIP         `bson:"geoip"`
 	LandingImage    *LandingImage      `bson:"landing_image"`
 	// Denormalized enrichment summary (written by the enrichment worker/on-demand).
-	VulnCount  int      `bson:"vuln_count"`
-	ShodanTags []string `bson:"shodan_tags"`
-	ExtraPorts []int    `bson:"extra_ports"`
-	Verdict    string   `bson:"verdict"`
+	VulnCount  int       `bson:"vuln_count"`
+	ShodanTags []string  `bson:"shodan_tags"`
+	ExtraPorts []int     `bson:"extra_ports"`
+	Verdict    string    `bson:"verdict"`
+	Sources    []string  `bson:"enrich_sources"`
+	EnrichedAt time.Time `bson:"enriched_at"`
 }
 
 // LandingImage mirrors the embedded landing_image sub-document.

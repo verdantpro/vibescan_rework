@@ -1,13 +1,20 @@
+import { useMeta } from "../lib/meta";
 import "./About.css";
 
 const ABUSE = "abuse@verdantprotocol.com";
 
 export default function About() {
+  useMeta({
+    title: "About, Ethics & Opt-Out — VibeScan",
+    description: "What VibeScan scans and does not scan, how records work, and how to opt out or request removal.",
+    path: "/about",
+  });
   return (
     <div className="record">
       <div className="page wrap about">
         <div className="eyebrow">◊ About the record</div>
         <h1 className="about-title display">What VibeScan is</h1>
+        <p className="about-tagline mono">VibeScan · Live Cleartext HTTP Acquisition</p>
         <p className="about-lede">
           A public census of the reachable web — a screenshot and a few facts about services found,
           at random, across the public internet.

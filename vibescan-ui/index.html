@@ -3,10 +3,49 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
-    <meta name="description" content="vibescan — random internet HTTP/HTTPS discovery, screenshots, and telemetry." />
-    <title>vibescan</title>
+    <meta name="theme-color" content="#15171b" />
+    <title>VibeScan — Live Internet Discovery</title>
+    <meta
+      name="description"
+      content="VibeScan — a live census of the reachable web: random public IPv4 discovery, HTTP capture, geolocation, and threat-intel enrichment."
+    />
+    <link rel="canonical" href="https://vibescan.verdantprotocol.com/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="VibeScan" />
+    <meta property="og:title" content="VibeScan — Live Internet Discovery" />
+    <meta
+      property="og:description"
+      content="A live census of the reachable web: random public IPv4 discovery, HTTP capture, geolocation, and threat-intel enrichment."
+    />
+    <meta property="og:url" content="https://vibescan.verdantprotocol.com/" />
+    <meta property="og:image" content="https://vibescan.verdantprotocol.com/og.png" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="VibeScan — Live Internet Discovery" />
+    <meta
+      name="twitter:description"
+      content="A live census of the reachable web: random public IPv4 discovery, HTTP capture, geolocation, and threat-intel enrichment."
+    />
+    <meta name="twitter:image" content="https://vibescan.verdantprotocol.com/og.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "VibeScan",
+        "url": "https://vibescan.verdantprotocol.com/",
+        "applicationCategory": "SecurityApplication",
+        "operatingSystem": "Web",
+        "description": "A distributed internet-observation platform: authenticated scanner agents, HTTP capture, threat-intelligence enrichment, search, telemetry, and ethical opt-out controls.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

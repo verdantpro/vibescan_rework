@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type Stats } from "../api";
 import TimeSeries from "../components/TimeSeries";
 import ErrorState from "../components/ErrorState";
+import { useMeta } from "../lib/meta";
 import "./grid.css";
 import "./Stats.css";
 
@@ -53,6 +54,11 @@ function BarList({ data, color = "var(--cyan)", limit = 10 }: { data: Record<str
 }
 
 export default function StatsPage() {
+  useMeta({
+    title: "Internet Exposure Statistics — VibeScan",
+    description: "Aggregate statistics on discovered web services: ports, status codes, cleartext exposure, CVEs, and reputation.",
+    path: "/stats",
+  });
   const [hours, setHours] = useState(24);
   const [s, setS] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -125,10 +131,13 @@ export default function StatsPage() {
                 {insecure.toLocaleString()} insecure · {secure.toLocaleString()} https
               </div>
             </div>
-            <div className="tile panel hud">
-              <div className="tile-label eyebrow">Exposed</div>
+            <div
+              className="tile panel hud"
+              title="Services whose host is associated with at least one CVE by Shodan InternetDB. This is a third-party association, not a confirmed or verified vulnerability."
+            >
+              <div className="tile-label eyebrow">CVE-associated</div>
               <div className="tile-num display insecure">{s.exposed_services.toLocaleString()}</div>
-              <div className="tile-sub mono dim">services with ≥1 known CVE · via Shodan</div>
+              <div className="tile-sub mono dim">host has ≥1 CVE · Shodan, provider-reported</div>
             </div>
           </div>
 

@@ -18,7 +18,9 @@
   --ink: #e7e3d8;
   --ink-dim: #a8a394;
   --muted: #97927f;
-  --muted-2: #8a8371;
+  /* Raised from #8a8371 to clear WCAG AA (4.5:1) for small telemetry labels on
+     --panel (e.g. "CALL SIGN" / "PROTOCOL"); ~4.8:1 while staying muted. */
+  --muted-2: #8f8975;
 
   /* accent — Verdant Protocol green (#2f6f4f), lifted for the dark ground.
      --cyan/--cyan-dim kept as aliases so legacy references become green. */
@@ -29,9 +31,10 @@
   --cyan-dim: #2f6f4f;
   --violet: #7fa88c;
 
-  /* semantic (separate from accent) */
-  --red: #d9534a;
-  --alert: #d9534a;
+  /* semantic (separate from accent). --red raised from #d9534a to clear WCAG AA
+     for red labels/badges on the panel surfaces (was ~3.8–4.2:1, now ~4.8:1). */
+  --red: #e8695f;
+  --alert: #e8695f;
   --amber: #cf9b46;
   --lime: #58a97c;
 

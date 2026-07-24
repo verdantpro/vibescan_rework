@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, imageURL, type SignalDetail } from "../api";
 import CrossReference from "../components/CrossReference";
+import { useMeta } from "../lib/meta";
 import "./Signal.css";
 
 function Note({
@@ -30,6 +31,11 @@ export default function Signal() {
   const { ip = "", port = "" } = useParams();
   const [d, setD] = useState<SignalDetail | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
+
+  useMeta({
+    title: ip && port ? `${ip}:${port} — VibeScan record` : "Record — VibeScan",
+    description: "A point-in-time capture and telemetry record for a discovered web service.",
+  });
 
   useEffect(() => {
     let alive = true;
@@ -87,7 +93,14 @@ export default function Signal() {
             <span className="fr-tick bl"></span><span className="fr-tick br"></span>
             <div className="fr-exhibit-frame">
               {s.image_url ? (
-                <img src={imageURL(s.image_url)} alt={`Captured screenshot of ${s.ip}:${s.port}`} />
+                <img
+                  src={imageURL(s.image_url)}
+                  alt={`Captured screenshot of ${s.ip}:${s.port}`}
+                  width={1147}
+                  height={720}
+                  loading="lazy"
+                  decoding="async"
+                />
               ) : (
                 <div className="fr-noshot">No capture on record</div>
               )}

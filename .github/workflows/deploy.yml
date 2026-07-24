@@ -1,5 +1,5 @@
-# Build the app image → push to Amazon ECR → roll the stack on EC2 via SSM
-# (no inbound SSH required). Setup: vibescan-go/deploy/DEPLOY.md § "CI/CD".
+# Test → build the app image → push to Amazon ECR → roll the stack on EC2 via
+# SSM (no inbound SSH required). Setup: vibescan-go/deploy/DEPLOY.md § "CI/CD".
 name: Deploy
 
 on:
@@ -15,6 +15,12 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+# OIDC: the deploy job assumes an AWS role via a short-lived token instead of
+# long-lived access keys. `id-token: write` is required to mint the token.
+permissions:
+  contents: read
+  id-token: write
+
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: vibescan
@@ -22,8 +28,41 @@ env:
   DEPLOY_DIR: /home/ubuntu/deploy
 
 jobs:
+  # Fast, deterministic gate: production never ships code that fails these.
+  # (The CI workflow adds the heavier govulncheck / lint / Trivy scans on PRs.)
+  test:
+    name: Test gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: vibescan-go/go.mod
+          cache-dependency-path: vibescan-go/go.sum
+      - name: go vet
+        working-directory: vibescan-go
+        run: go vet ./...
+      - name: go test
+        working-directory: vibescan-go
+        # -short skips browser/capture tests that need a real headless Chromium
+        # (not available on CI runners); they self-guard with testing.Short().
+        run: go test -short ./...
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: vibescan-ui/package-lock.json
+      - name: UI install
+        working-directory: vibescan-ui
+        run: npm ci
+      - name: UI typecheck + build
+        working-directory: vibescan-ui
+        run: npm run build
+
   deploy:
     name: Build → ECR → SSM deploy
+    needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -31,11 +70,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -78,48 +116,61 @@ jobs:
             echo "Missing secret EC2_INSTANCE_ID (i-…)" >&2
             exit 1
           fi
+          REGISTRY="${IMAGE%%/*}"
 
-          # IMPORTANT: AWS-RunShellScript runs each command with /bin/sh (dash).
-          # Do NOT use bash-only options (pipefail). Each array entry is one sh -c.
-          # Failures stop the remaining commands automatically.
-          PARAMS=$(jq -n \
-            --arg image "$IMAGE" \
-            --arg dir "$DEPLOY_DIR" \
-            --arg region "$AWS_REGION" \
-            '{
-              commands: [
-                ("echo Deploying " + $image),
-                ("cd " + $dir),
-                "test -f .env",
-                (
-                  "if grep -qE \"^IMAGE=\" .env; then " +
-                  "sed -i \"s|^IMAGE=.*|IMAGE=" + $image + "|\" .env; " +
-                  "else printf \"\\nIMAGE=%s\\n\" \"" + $image + "\" >> .env; fi"
-                ),
-                # Authenticate to ECR on the box (tokens expire ~12h). Without
-                # this the pull below fails and — since sh has no set -e — the
-                # script would sail on to the healthcheck and report a green
-                # deploy while the OLD container keeps running.
-                ("aws ecr get-login-password --region " + $region +
-                  " | docker login --username AWS --password-stdin " +
-                  ($image | split("/")[0]) +
-                  " || { echo ECR_LOGIN_FAILED >&2; exit 1; }"),
-                "docker compose -f docker-compose.registry.yml pull || { echo PULL_FAILED >&2; exit 1; }",
-                "docker compose -f docker-compose.registry.yml up -d || { echo UP_FAILED >&2; exit 1; }",
-                # Fail loudly if the running app image is not the tag we just
-                # deployed — a no-op roll must never look like success.
-                ("RUNNING=$(docker inspect -f \"{{.Config.Image}}\" $(docker compose -f docker-compose.registry.yml ps -q app)); " +
-                  "echo running_image=$RUNNING; " +
-                  "test \"$RUNNING\" = \"" + $image + "\" || { echo IMAGE_MISMATCH expected=" + $image + " >&2; exit 1; }"),
-                "docker compose -f docker-compose.registry.yml run --rm --entrypoint migrate app || true",
-                "sleep 3",
-                "curl -fsS --max-time 20 https://vibescan.verdantprotocol.com/api/healthz || { echo HEALTHCHECK_FAILED >&2; exit 1; }",
-                "echo",
-                "echo Healthcheck OK"
-              ]
-            }')
+          # The entire remote rollout runs as ONE AWS-RunShellScript command so
+          # shell state (the previous image, the rollback function) persists
+          # across steps. AWS-RunShellScript uses /bin/sh (dash) — POSIX only,
+          # no `set -e`; every step guards itself and rolls back on failure.
+          # Local $VARS expand here; \$VARS are deferred to the remote host.
+          REMOTE_SCRIPT=$(cat <<EOF
+          set -u
+          cd "$DEPLOY_DIR" || { echo CD_FAILED >&2; exit 1; }
+          test -f .env || { echo ENV_MISSING >&2; exit 1; }
 
-          echo "SSM parameters preview (first command): $(echo "$PARAMS" | jq -r '.commands[0]')"
+          # Record the currently-running image so a failed rollout can revert.
+          PREV=\$(docker inspect -f '{{.Config.Image}}' "\$(docker compose -f docker-compose.registry.yml ps -q app 2>/dev/null)" 2>/dev/null || echo "")
+          echo prev_image=\${PREV:-none}
+
+          rollback() {
+            echo "ROLLING_BACK to \${PREV:-none}" >&2
+            if [ -n "\$PREV" ]; then
+              sed -i "s|^IMAGE=.*|IMAGE=\$PREV|" .env
+              docker compose -f docker-compose.registry.yml up -d || echo ROLLBACK_UP_FAILED >&2
+            else
+              echo "No previous image recorded; cannot roll back." >&2
+            fi
+          }
+
+          # Point the stack at the new image.
+          if grep -qE "^IMAGE=" .env; then
+            sed -i "s|^IMAGE=.*|IMAGE=$IMAGE|" .env
+          else
+            printf "\nIMAGE=%s\n" "$IMAGE" >> .env
+          fi
+
+          # ECR auth on the box (tokens expire ~12h).
+          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY" || { echo ECR_LOGIN_FAILED >&2; exit 1; }
+
+          docker compose -f docker-compose.registry.yml pull || { echo PULL_FAILED >&2; exit 1; }
+          docker compose -f docker-compose.registry.yml up -d || { echo UP_FAILED >&2; rollback; exit 1; }
+
+          # A no-op roll must never look like success.
+          RUNNING=\$(docker inspect -f '{{.Config.Image}}' "\$(docker compose -f docker-compose.registry.yml ps -q app)")
+          echo running_image=\$RUNNING
+          [ "\$RUNNING" = "$IMAGE" ] || { echo "IMAGE_MISMATCH expected=$IMAGE got=\$RUNNING" >&2; rollback; exit 1; }
+
+          # Migrations must succeed — a failed migration no longer sails on silently.
+          docker compose -f docker-compose.registry.yml run --rm --entrypoint migrate app || { echo MIGRATE_FAILED >&2; rollback; exit 1; }
+
+          sleep 3
+          # A failed health check rolls back to the previous image, then fails.
+          curl -fsS --max-time 20 https://vibescan.verdantprotocol.com/api/healthz || { echo HEALTHCHECK_FAILED >&2; rollback; exit 1; }
+          echo Healthcheck OK
+          EOF
+          )
+
+          PARAMS=$(jq -n --arg s "$REMOTE_SCRIPT" '{commands: [$s]}')
 
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
@@ -174,4 +225,5 @@ jobs:
             echo "- Image: \`${{ steps.meta.outputs.image }}\`"
             echo "- Site: https://vibescan.verdantprotocol.com/"
             echo "- Transport: **AWS SSM** (no inbound SSH)"
+            echo "- Auth: **GitHub OIDC** (assumed role, no static keys)"
           } >> "$GITHUB_STEP_SUMMARY"

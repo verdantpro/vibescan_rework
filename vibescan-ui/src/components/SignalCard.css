@@ -61,3 +61,13 @@
 .card-sub { font-size: 11px; }
 .card-sub .dim { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-sub .dim:first-child { max-width: 70%; }
+/* Provenance qualifier for third-party reputation/CVE data (only on flagged cards). */
+.card-provenance {
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

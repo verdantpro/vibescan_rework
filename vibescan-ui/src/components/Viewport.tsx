@@ -46,7 +46,16 @@ export default function Viewport({ detail, loading, auto, autoSeconds, error, on
     <section className="vp panel hud">
       <div className="vp-screen">
         {s?.image_url ? (
-          <img key={key} className="vp-img" src={imageURL(s.image_url)} alt="" />
+          <img
+            key={key}
+            className="vp-img"
+            src={imageURL(s.image_url)}
+            alt={s ? `Live capture of ${s.ip}:${s.port}` : ""}
+            width={1147}
+            height={720}
+            decoding="async"
+            fetchPriority="high"
+          />
         ) : (
           <div className="vp-empty mono">
             {loading ? "SCANNING…" : error ? "COULDN'T REACH THE COLLECTOR" : "NO SIGNAL"}
