@@ -34,7 +34,10 @@ export default function TopBar() {
     <header className="topbar">
       <div className="wrap topbar-inner">
         <NavLink to="/" className="brand">
-          <span className="brand-mark display">Vibe</span><span className="brand-accent display">scan</span>
+          <span className="brand-word">
+            <span className="brand-mark display">Vibe</span><span className="brand-accent display">scan</span>
+          </span>
+          <span className="brand-sub mono">Live Cleartext HTTP Acquisition</span>
         </NavLink>
 
         <nav className="nav">

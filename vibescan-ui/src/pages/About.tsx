@@ -8,6 +8,7 @@ export default function About() {
       <div className="page wrap about">
         <div className="eyebrow">◊ About the record</div>
         <h1 className="about-title display">What VibeScan is</h1>
+        <p className="about-tagline mono">VibeScan · Live Cleartext HTTP Acquisition</p>
         <p className="about-lede">
           A public census of the reachable web — a screenshot and a few facts about services found,
           at random, across the public internet.
