@@ -33,13 +33,15 @@
   background: rgba(88, 169, 124, 0.06);
 }
 
-.topbar-meta { display: flex; align-items: center; gap: 18px; font-size: 12px; }
+.topbar-meta { display: flex; align-items: center; gap: 18px; font-size: 12px; flex-shrink: 0; }
 .insecure-count { color: var(--muted); }
-.clock { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
+.clock { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); white-space: nowrap; }
 
 @media (max-width: 720px) {
-  .topbar-inner { gap: 14px; }
+  .topbar-inner { gap: 12px; }
   .insecure-count { display: none; }
   .brand-mark { font-size: 15px; }
-  .nav-link { padding: 6px 8px; letter-spacing: 0.1em; }
+  .brand-sub { display: none; }
+  /* Larger tap targets on touch; the fixed-height bar keeps the header compact. */
+  .nav-link { padding: 10px 10px; letter-spacing: 0.1em; }
 }

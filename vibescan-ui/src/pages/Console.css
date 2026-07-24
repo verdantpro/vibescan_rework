@@ -31,3 +31,5 @@
 }
 @media (max-width: 1100px) { .console-strip { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 620px) { .console-strip { grid-template-columns: repeat(2, 1fr); } }
+/* Single column at the smallest widths so cards aren't squeezed into narrow strips. */
+@media (max-width: 420px) { .console-strip { grid-template-columns: 1fr; } }

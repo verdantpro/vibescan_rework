@@ -49,7 +49,7 @@
   max-width: 66ch;
   color: var(--ink-dim);
   line-height: 1.65;
-  font-size: 15px;
+  font-size: 16px;
 }
 .about p:last-child { margin-bottom: 0; }
 .about em { color: var(--ink); font-style: italic; }
@@ -69,7 +69,7 @@
   padding-left: 20px;
   color: var(--ink-dim);
   line-height: 1.55;
-  font-size: 15px;
+  font-size: 16px;
 }
 .about-list li::before {
   content: "—";
