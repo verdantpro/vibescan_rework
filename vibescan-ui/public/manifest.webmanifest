@@ -1,0 +1,18 @@
+{
+  "name": "VibeScan — Live Cleartext HTTP Acquisition",
+  "short_name": "VibeScan",
+  "description": "A live census of the reachable web: random public IPv4 discovery, HTTP capture, geolocation, and threat-intel enrichment.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#15171b",
+  "theme_color": "#15171b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

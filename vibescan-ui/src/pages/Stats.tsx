@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type Stats } from "../api";
 import TimeSeries from "../components/TimeSeries";
 import ErrorState from "../components/ErrorState";
+import { useMeta } from "../lib/meta";
 import "./grid.css";
 import "./Stats.css";
 
@@ -53,6 +54,11 @@ function BarList({ data, color = "var(--cyan)", limit = 10 }: { data: Record<str
 }
 
 export default function StatsPage() {
+  useMeta({
+    title: "Internet Exposure Statistics — VibeScan",
+    description: "Aggregate statistics on discovered web services: ports, status codes, cleartext exposure, CVEs, and reputation.",
+    path: "/stats",
+  });
   const [hours, setHours] = useState(24);
   const [s, setS] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);

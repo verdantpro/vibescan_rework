@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type Tile } from "../api";
 import SignalCard from "../components/SignalCard";
 import ErrorState from "../components/ErrorState";
+import { useMeta } from "../lib/meta";
 import "./grid.css";
 
 const PAGE = 60;
@@ -9,6 +10,11 @@ const PAGE = 60;
 type Mode = "ranked" | "latest";
 
 export default function Feed() {
+  useMeta({
+    title: "Signal Feed — VibeScan",
+    description: "A live feed of recently captured web services discovered across the public internet.",
+    path: "/feed",
+  });
   const [mode, setMode] = useState<Mode>("ranked");
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [offset, setOffset] = useState(0);

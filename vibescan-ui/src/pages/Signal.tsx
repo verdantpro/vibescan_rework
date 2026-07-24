@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, imageURL, type SignalDetail } from "../api";
 import CrossReference from "../components/CrossReference";
+import { useMeta } from "../lib/meta";
 import "./Signal.css";
 
 function Note({
@@ -30,6 +31,11 @@ export default function Signal() {
   const { ip = "", port = "" } = useParams();
   const [d, setD] = useState<SignalDetail | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
+
+  useMeta({
+    title: ip && port ? `${ip}:${port} — VibeScan record` : "Record — VibeScan",
+    description: "A point-in-time capture and telemetry record for a discovered web service.",
+  });
 
   useEffect(() => {
     let alive = true;

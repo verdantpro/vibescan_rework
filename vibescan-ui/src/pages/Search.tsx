@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, type Tile } from "../api";
 import SignalCard from "../components/SignalCard";
 import ErrorState from "../components/ErrorState";
+import { useMeta } from "../lib/meta";
 import "./grid.css";
 import "./Search.css";
 
@@ -10,6 +11,11 @@ type SecFilter = "any" | "https" | "http";
 const PAGE = 60;
 
 export default function Search() {
+  useMeta({
+    title: "Search the Census — VibeScan",
+    description: "Search captured web services by banner, product, port, status, location, CVEs, and reputation.",
+    path: "/search",
+  });
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
   const [port, setPort] = useState("");
