@@ -16,7 +16,7 @@ ENV RWO_ROUTES_PATH="/route-data/routes.json"
 RUN npm run build
 
 # --- stage 2: build the Go binaries with the UI embedded ---
-FROM golang:1.26-alpine AS build
+FROM golang:1.27-alpine AS build
 ARG BUILD_COMMIT=dev
 ARG BUILD_DATE=unknown
 WORKDIR /src
